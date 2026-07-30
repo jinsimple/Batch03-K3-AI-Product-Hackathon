@@ -270,120 +270,55 @@ with tab1:
     st.markdown("### ⭐ Điểm thưởng cho người chăm chỉ")
     st.caption("VLearn · VinUni AI Thực Chiến — ghi nhận nhanh điểm cộng phát biểu")
     
-    use_ai = st.toggle("🔍 Tìm nâng cao bằng AI (khi gõ sai, viết tắt, biệt danh)", value=False)
+    # Chế độ chọn nhanh bằng Selectbox tự động gợi ý/lọc
+    counts = {s["code"]: 0 for s in ROSTER}
+    for r in db_records:
+        sid = r.get("student_id")
+        if sid and r.get("status") == "Đã đồng bộ":
+            counts[sid] = counts.get(sid, 0) + 1
+            
+    sorted_roster = sorted(ROSTER, key=lambda s: -counts.get(s["code"], 0))
+    options = ["-- Chọn học viên --"] + sorted_roster
     
-    if use_ai:
-        query = st.text_input(
-            "Tên hoặc mã học viên",
-            placeholder="Gõ tên hoặc mã học viên...",
-            label_visibility="collapsed",
-        )
+    def format_student(opt):
+        if isinstance(opt, str):
+            return opt
+        name = opt["name"]
+        code = opt["code"]
+        count = counts.get(code, 0)
+        count_str = f" ({count} lần phát biểu)" if count > 0 else ""
+        return f"{name} ({code}){count_str} | {normalize(name)}"
         
-        results = local_search(query, db_records) if query else local_search("", db_records)
-        
-        ai_note = None
-        if query and not results:
-            with st.spinner("Không khớp trực tiếp, đang hỏi AI gợi ý..."):
-                use_mock_flag = (run_mode == "Chạy Mock (Offline - Khuyên dùng test nhanh)")
+    # Tìm index hiện tại dựa trên st.session_state.selected
+    current_sel = st.session_state.selected
+    default_index = 0
+    if current_sel:
+        for idx, opt in enumerate(options):
+            if not isinstance(opt, str) and opt["code"] == current_sel:
+                default_index = idx
+                break
                 
-                # Tính toán roster có count động để gửi làm context cho fuzzy search
-                roster_for_suggest = []
-                counts_map = {s["code"]: 0 for s in ROSTER}
-                for r in db_records:
-                    sid = r.get("student_id")
-                    if sid and r.get("status") == "Đã đồng bộ":
-                        counts_map[sid] = counts_map.get(sid, 0) + 1
-                for s in ROSTER:
-                    roster_for_suggest.append({
-                        "name": s["name"],
-                        "code": s["code"],
-                        "count": counts_map.get(s["code"], 0)
-                    })
-                    
-                ai_matches, err = ai_fuzzy_suggest_llm(
-                    query, 
-                    roster_for_suggest, 
-                    gemini_api_key=gemini_key, 
-                    anthropic_api_key=anthropic_key, 
-                    use_mock=use_mock_flag
-                )
-                
-            if err and "Mock" not in err:
-                ai_note = err
-            elif ai_matches:
-                results = ai_matches
-                ai_note = "Gợi ý từ AI (không khớp trực tiếp theo tên/mã)"
-            else:
-                ai_note = "AI không đủ tự tin để gợi ý — vui lòng nhập lại tên chính xác."
-                
-        if ai_note:
-            st.caption(ai_note)
-            
-        for s in results:
-            cols = st.columns([5, 2, 2])
-            with cols[0]:
-                st.write(f"**{s['name']}**")
-                st.caption(s["code"])
-            with cols[1]:
-                if s["count"] > 0:
-                    st.caption(f"Đã {s['count']} lần")
-            with cols[2]:
-                if st.button("Chọn", key=f"pick-{s['code']}"):
-                    st.session_state.selected = s["code"]
-                    st.session_state.scroll_to_grading = True
-                    st.session_state.ai_analysis = None
-                    st.session_state.last_note = ""
-                    st.rerun()
+    selected_opt = st.selectbox(
+        "Tên hoặc mã học viên (Chọn nhanh)",
+        options=options,
+        format_func=format_student,
+        index=default_index,
+        label_visibility="collapsed"
+    )
+    
+    if selected_opt != "-- Chọn học viên --":
+        if st.session_state.selected != selected_opt["code"]:
+            st.session_state.selected = selected_opt["code"]
+            st.session_state.scroll_to_grading = True
+            st.session_state.ai_analysis = None
+            st.session_state.last_note = ""
+            st.rerun()
     else:
-        # Chế độ chọn nhanh bằng Selectbox tự động gợi ý/lọc
-        counts = {s["code"]: 0 for s in ROSTER}
-        for r in db_records:
-            sid = r.get("student_id")
-            if sid and r.get("status") == "Đã đồng bộ":
-                counts[sid] = counts.get(sid, 0) + 1
-                
-        sorted_roster = sorted(ROSTER, key=lambda s: -counts.get(s["code"], 0))
-        options = ["-- Chọn học viên --"] + sorted_roster
-        
-        def format_student(opt):
-            if isinstance(opt, str):
-                return opt
-            name = opt["name"]
-            code = opt["code"]
-            count = counts.get(code, 0)
-            count_str = f" ({count} lần phát biểu)" if count > 0 else ""
-            return f"{name} ({code}){count_str} | {normalize(name)}"
-            
-        # Tìm index hiện tại dựa trên st.session_state.selected
-        current_sel = st.session_state.selected
-        default_index = 0
-        if current_sel:
-            for idx, opt in enumerate(options):
-                if not isinstance(opt, str) and opt["code"] == current_sel:
-                    default_index = idx
-                    break
-                    
-        selected_opt = st.selectbox(
-            "Tên hoặc mã học viên (Chọn nhanh)",
-            options=options,
-            format_func=format_student,
-            index=default_index,
-            label_visibility="collapsed"
-        )
-        
-        if selected_opt != "-- Chọn học viên --":
-            if st.session_state.selected != selected_opt["code"]:
-                st.session_state.selected = selected_opt["code"]
-                st.session_state.scroll_to_grading = True
-                st.session_state.ai_analysis = None
-                st.session_state.last_note = ""
-                st.rerun()
-        else:
-            if st.session_state.selected is not None:
-                st.session_state.selected = None
-                st.session_state.ai_analysis = None
-                st.session_state.last_note = ""
-                st.rerun()
+        if st.session_state.selected is not None:
+            st.session_state.selected = None
+            st.session_state.ai_analysis = None
+            st.session_state.last_note = ""
+            st.rerun()
 
     if st.session_state.selected:
         sel = next((s for s in ROSTER if s["code"] == st.session_state.selected), None)
