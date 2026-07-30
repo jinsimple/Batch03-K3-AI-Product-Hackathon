@@ -24,14 +24,20 @@ if __name__ == "__main__" and not st.runtime.exists():
 # Thêm thư mục gốc vào PYTHONPATH để Python nhận diện module codebase
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from codebase.llm import generate_quiz_question
+from codebase.llm import generate_quiz_question, clean_citations
 from codebase.discord_notifier import (
     send_discord_score_notification,
     get_discord_config,
     send_discord_quiz_notification,
-    send_discord_quiz_winner
+    send_discord_quiz_winner,
+    send_discord_dm_or_notification
 )
 from codebase.quiz_manager import set_active_quiz, get_active_quiz, process_quiz_answer
+from codebase.question_manager import get_all_questions, update_question_answer
+
+# Lấy webhook Discord từ biến môi trường
+discord_webhook = os.getenv("DISCORD_WEBHOOK_URL", "")
+
 
 
 # Đường dẫn lưu trữ database cục bộ
@@ -80,12 +86,22 @@ def normalize(s: str) -> str:
 
 
 # --- CẤU HÌNH TRANG & CSS NHẬN DIỆN THƯƠNG HIỆU VLEARN (NAVY + ĐỎ) ---
-st.set_page_config(page_title="Điểm thưởng cho người chăm chỉ", page_icon="⭐", layout="wide")
+st.set_page_config(page_title="Điểm thưởng cho người chăm chỉ", page_icon="⭐", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
 #MainMenu, footer, header {visibility: hidden;}
 .stApp { background: #16233d; }
+
+/* Bỏ và ẩn hoàn toàn thanh sidebar */
+[data-testid="stSidebar"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="collapsedControl"],
+button[data-testid="baseButton-header"],
+button[title="Collapse sidebar"],
+button[title="Expand sidebar"] {
+    display: none !important;
+}
 
 /* Thùng chứa chính mở rộng ngang và căn giữa */
 .block-container {
@@ -287,56 +303,21 @@ if st.session_state.get("toast_message"):
     # Xoá khỏi session state để không lặp lại khi tương tác tiếp theo
     st.session_state.toast_message = None
 
-# --- SIDEBAR CONFIG ---
-st.sidebar.header("⚙️ Cấu Hình Hệ Thống")
 
-run_mode = st.sidebar.radio(
-    "Chế độ hoạt động:",
-    ["Chạy Mock (Offline - Khuyên dùng test nhanh)", "Kết nối API thật"]
-)
 
-gemini_key = ""
-anthropic_key = ""
-
-if run_mode == "Kết nối API thật":
-    gemini_key = st.sidebar.text_input("Nhập Gemini API Key:", type="password", help="Dùng cho AI Quiz và tìm kiếm fuzzy")
-    anthropic_key = st.sidebar.text_input("Nhập Anthropic API Key:", type="password", help="Dùng cho tìm kiếm fuzzy Claude")
-    if not gemini_key and not anthropic_key:
-        st.sidebar.warning("Vui lòng cấu hình API Key để kết nối AI thật.")
-else:
-    st.sidebar.info("Đang chạy ở chế độ Mock giả lập (không cần API key, tự động xử lý các tình huống khó).")
-
-st.sidebar.write("---")
-st.sidebar.subheader("🤖 Discord Bot Notifier")
-bot_token_env, channel_id_env, webhook_env = get_discord_config()
-
-if bot_token_env and channel_id_env:
-    st.sidebar.success("✅ Discord Bot API: Đã kết nối (.env)")
-elif webhook_env:
-    st.sidebar.info("🔗 Discord Webhook: Đã kết nối (.env)")
-else:
-    st.sidebar.caption("💡 Trạng thái: Mock Notifier (Chưa cấu hình Token/Webhook trong `.env`)")
-
-discord_webhook = st.sidebar.text_input("Override Webhook URL (Tùy chọn):", type="password", placeholder="https://discord.com/api/webhooks/...")
-
-st.sidebar.write("---")
-st.sidebar.write("📊 **Quản lý dữ liệu**")
-if st.sidebar.button("Reset Database về mặc định", type="secondary"):
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
-    st.session_state.selected = None
-    st.rerun()
 
 # Tải danh sách điểm hiện tại
 db_records = load_db()
 
 # --- MAIN WORKSPACE ---
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "✍️ Ghi nhận điểm cộng", 
     "📥 Duyệt điểm +", 
-    "🔍 Tra cứu minh bạch", 
-    "🎮 AI Quiz (Discord)"
+    "🔍 Tra cứu", 
+    "🎮 AI Quiz (Discord)",
+    "❓ Câu hỏi từ học viên"
 ])
+
 
 # --- TAB 1: GHI NHẬN ĐIỂM CỘNG ---
 with tab1:
@@ -421,11 +402,10 @@ with tab1:
                 height=80
             )
             
-            # 3. Nhập feedback gửi học viên (Tùy chọn, điền sẵn theo điểm đã chọn)
-            default_feedback = f"Đã ghi nhận điểm cộng +{int(points)} phát biểu."
+            # 3. Nhập feedback gửi học viên (Tùy chọn)
             final_feedback = st.text_area(
                 "Feedback gửi học viên (Tùy chọn):",
-                value=default_feedback,
+                value="",
                 placeholder="Ví dụ: Đã ghi nhận điểm cộng +1 phát biểu.",
                 height=80
             )
@@ -449,20 +429,10 @@ with tab1:
                     db_records.append(new_record)
                     save_db(db_records)
                     
-                    _, discord_msg = send_discord_score_notification(
-                        student_name=sel["name"],
-                        student_code=sel["code"],
-                        final_score=int(points),
-                        coach_note=note_content,
-                        feedback=final_feedback,
-                        status="Chờ duyệt",
-                        override_webhook=discord_webhook
-                    )
-                    
                     st.session_state.toast_message = {
                         "type": "draft",
                         "title": "Đã lưu nháp! ⏳",
-                        "body": f"Lưu nháp thành công cho <b>{sel['name']}</b> (+{int(points)} điểm).<br><span style='font-size:11px;color:#94a3b8;'>{discord_msg}</span>"
+                        "body": f"Lưu nháp thành công cho <b>{sel['name']}</b> (+{int(points)} điểm)."
                     }
                     st.session_state.selected = None
                     st.session_state.last_note = ""
@@ -551,10 +521,9 @@ with tab2:
                         key=f"approve_pts_{rec_id}_{idx}"
                     )
                 with col_p2:
-                    default_fb = f"🎉 Lab Coach đã xác thực & cộng điểm +{int(approval_points)} cho câu trả lời trên lớp!"
                     approval_feedback = st.text_input(
                         f"Feedback gửi học viên:",
-                        value=default_fb,
+                        value="",
                         key=f"approve_fb_{rec_id}_{idx}"
                     )
 
@@ -605,7 +574,7 @@ with tab2:
 # --- TAB 3: TRA CỨU HỌC VIÊN ---
 with tab3:
 
-    st.markdown("### 🔍 Cổng Tra Cứu Minh Bạch")
+    st.markdown("### 🔍 Cổng Tra Cứu")
     st.caption("Tra cứu lịch sử và số lượng điểm cộng phát biểu")
     
     student_options = ["-- Chọn học viên để tra cứu --"] + [f"{s['code']} - {s['name']}" for s in ROSTER]
@@ -690,41 +659,36 @@ with tab4:
         st.session_state.quiz_winner = None
     if "quiz_msg" not in st.session_state:
         st.session_state.quiz_msg = ""
+    if "quiz_rag_chunks" not in st.session_state:
+        st.session_state.quiz_rag_chunks = []
 
     # Sub-section 1: Sinh câu hỏi với AI
-    st.markdown("#### 1. 🤖 Sinh câu hỏi trắc nghiệm AI")
+    st.markdown("#### 1. 🤖 Sinh câu hỏi trắc nghiệm AI (RAG 6 Transcripts)")
     
-    col_q1, col_q2 = st.columns([3, 2])
-    with col_q1:
-        quiz_topic_select = st.selectbox(
-            "Chọn chủ đề kiến thức AI/ML:",
-            [
-                "Overfitting & Underfitting",
-                "Bias-Variance Tradeoff",
-                "Prompt Engineering",
-                "Transformers & Attention",
-                "Chủ đề khác (Tự nhập)"
-            ]
-        )
-    with col_q2:
-        if quiz_topic_select == "Chủ đề khác (Tự nhập)":
-            custom_topic = st.text_input("Gõ chủ đề tùy chỉnh:", placeholder="Ví dụ: RAG, Fine-tuning...")
-            active_topic = custom_topic if custom_topic.strip() else "Kiến thức AI/ML"
-        else:
-            active_topic = quiz_topic_select
+    active_topic = st.selectbox(
+        "Chọn chủ đề kiến thức bài giảng (từ 6 Transcripts):",
+        [
+            "Xác định bài toán kinh doanh cho AI",
+            "Chỉ số thành công & Mức tự động hóa",
+            "Triển khai AI & Ràng buộc hệ thống",
+            "LLM Foundations & Cách LLM hoạt động",
+            "Đánh giá mô hình & Dữ liệu AI",
+            "Transformers & Attention Mechanism"
+        ]
+    )
 
     if st.button("✨ Sinh câu hỏi trắc nghiệm mới 🚀", type="primary"):
-        with st.spinner("AI đang soạn câu hỏi trắc nghiệm..."):
-            use_mock_flag = (run_mode == "Chạy Mock (Offline - Khuyên dùng test nhanh)")
-            q_dict, q_msg = generate_quiz_question(
+        with st.spinner("AI đang truy xuất 6 file transcript & soạn câu hỏi trắc nghiệm..."):
+            q_dict, q_msg, rag_chunks = generate_quiz_question(
                 topic=active_topic,
-                api_key=gemini_key,
-                use_mock=use_mock_flag
+                use_mock=False,
+                use_rag=True
             )
             st.session_state.current_quiz = q_dict
             st.session_state.quiz_status = "Chưa phát"
             st.session_state.quiz_winner = None
             st.session_state.quiz_msg = q_msg
+            st.session_state.quiz_rag_chunks = rag_chunks
             st.rerun()
 
     if st.session_state.quiz_msg:
@@ -747,6 +711,12 @@ with tab4:
                     st.write(f"- **{key}.** {opts[key]}{is_correct_tag}")
             st.caption(f"💡 *Giải thích:* {cq.get('explanation')}")
 
+        if st.session_state.get("quiz_rag_chunks"):
+            with st.expander("📚 xem các đoạn trích dẫn bài giảng RAG đã trích xuất (6 Transcripts)", expanded=False):
+                for idx, chunk in enumerate(st.session_state.quiz_rag_chunks, 1):
+                    st.markdown(f"**Đoạn {idx}: [{chunk['file_name']}] — Mã thẻ: `{chunk['tag']}` — Phần: *{chunk['section']}***")
+                    st.info(chunk['content'])
+
         reward_points = st.number_input("Điểm phần thưởng cho lượt trả lời đúng nhanh nhất:", min_value=1, max_value=5, value=1, step=1)
 
         col_dis1, col_dis2 = st.columns([1, 1])
@@ -766,11 +736,18 @@ with tab4:
 
         with col_dis2:
             if st.button("🔄 Đổi câu hỏi khác", use_container_width=True):
-                st.session_state.current_quiz = None
-                st.session_state.quiz_status = "Chưa phát"
-                st.session_state.quiz_winner = None
-                st.session_state.quiz_msg = ""
-                st.rerun()
+                with st.spinner("AI đang truy xuất transcript & sinh câu hỏi mới..."):
+                    q_dict, q_msg, rag_chunks = generate_quiz_question(
+                        topic=active_topic,
+                        use_mock=False,
+                        use_rag=True
+                    )
+                    st.session_state.current_quiz = q_dict
+                    st.session_state.quiz_status = "Chưa phát"
+                    st.session_state.quiz_winner = None
+                    st.session_state.quiz_msg = q_msg
+                    st.session_state.quiz_rag_chunks = rag_chunks
+                    st.rerun()
 
     # Đồng bộ trạng thái mới nhất từ active_quiz.json (đối với trường hợp Discord Bot tự động xử lý)
     latest_active = get_active_quiz()
@@ -825,5 +802,105 @@ with tab4:
                 st.rerun()
             else:
                 st.error(msg)
+
+
+# --- TAB 5: CÂU HỎI TỪ HỌC VIÊN ---
+with tab5:
+    st.markdown("### ❓ Câu hỏi từ học viên (Discord /ask)")
+    
+    questions = get_all_questions()
+    
+    # Chỉ số thống kê
+    total_q = len(questions)
+    pending_q = len([q for q in questions if q.get("status") == "Chờ trả lời"])
+    answered_q = len([q for q in questions if q.get("status") == "Đã trả lời"])
+    
+    m_col1, m_col2, m_col3 = st.columns(3)
+    m_col1.metric("Tổng số câu hỏi", total_q)
+    m_col2.metric("⏳ Chờ phản hồi", pending_q)
+    m_col3.metric("✅ Đã phản hồi", answered_q)
+    
+    st.divider()
+    
+    # Bộ lọc danh sách
+    filter_status = st.radio(
+        "Lọc theo trạng thái câu hỏi:",
+        ["Chờ trả lời", "Đã trả lời", "Tất cả"],
+        horizontal=True
+    )
+    
+    if filter_status == "Chờ trả lời":
+        filtered = [q for q in questions if q.get("status") == "Chờ trả lời"]
+    elif filter_status == "Đã trả lời":
+        filtered = [q for q in questions if q.get("status") == "Đã trả lời"]
+    else:
+        filtered = questions
+        
+    filtered = list(reversed(filtered))  # Mới nhất lên đầu
+    
+    if not filtered:
+        st.info("Chưa có câu hỏi nào trong danh sách này.")
+    else:
+        for idx, q in enumerate(filtered):
+            q_id = q.get("id")
+            s_name = q.get("student_name", "Học viên")
+            s_code = q.get("student_id", "N/A")
+            q_text = q.get("question", "")
+            ai_ans = clean_citations(q.get("ai_answer", ""))
+            coach_ans = clean_citations(q.get("coach_answer", ai_ans))
+            sources = q.get("rag_sources", [])
+            status = q.get("status", "Chờ trả lời")
+            ts = q.get("timestamp", "")
+            discord_id = q.get("discord_user_id", "")
+            
+            is_pending = status == "Chờ trả lời"
+            status_badge = "⏳ Chờ trả lời" if is_pending else "✅ Đã trả lời"
+            
+            with st.expander(f"[{status_badge}] {s_name} ({s_code}) - {ts}", expanded=is_pending):
+                st.markdown("**❓ Nội dung câu hỏi:**")
+                st.info(q_text)
+                
+                st.markdown("**💡 Câu trả lời được gợi ý:**")
+                
+                input_key = f"coach_ans_input_{q_id}"
+                edited_answer = st.text_area(
+                    "Nội dung câu trả lời gửi tới học viên:",
+                    value=coach_ans,
+                    key=input_key,
+                    height=120,
+                    help="Lab Coach có thể tự do chỉnh sửa văn bản này trước khi gửi cho học viên"
+                )
+                
+                btn_col1, btn_col2 = st.columns([2, 3])
+                with btn_col1:
+                    if st.button("✅ Accept & Gửi riêng cho Học viên", key=f"btn_accept_{q_id}", type="primary", use_container_width=True):
+                        if not edited_answer.strip():
+                            st.error("Vui lòng nhập nội dung câu trả lời trước khi nộp.")
+                        else:
+                            # 1. Cập nhật vào DB
+                            update_question_answer(q_id, edited_answer.strip(), status="Đã trả lời")
+                            
+                            # 2. Gửi tin nhắn riêng / thông báo qua Discord
+                            success, notify_msg = send_discord_dm_or_notification(
+                                student_name=s_name,
+                                student_code=s_code,
+                                question=q_text,
+                                answer=edited_answer.strip(),
+                                discord_user_id=discord_id,
+                                override_webhook=discord_webhook
+                            )
+                            
+                            st.session_state.toast_message = {
+                                "type": "success",
+                                "title": "Đã gửi câu trả lời!",
+                                "body": f"Phản hồi đã được duyệt và gửi cho {s_name}: {notify_msg}"
+                            }
+                            st.rerun()
+                
+                with btn_col2:
+                    if not is_pending:
+                        ans_time = q.get("answered_at", "")
+                        st.caption(f"✅ Đã gửi phản hồi vào lúc: `{ans_time}`")
+
 
 

@@ -233,7 +233,7 @@ def send_discord_quiz_winner(student_name: str, student_code: str, topic: str, s
         "fields": [
             {
                 "name": "🎯 Điểm phần thưởng",
-                "value": f"**+{score:.1f} điểm** (Đã tự động ghi nhận vào Cổng Tra Cứu Minh Bạch)",
+                "value": f"**+{score:.1f} điểm** (Đã tự động ghi nhận vào Cổng Tra Cứu)",
                 "inline": True
             }
         ],
@@ -262,4 +262,93 @@ def send_discord_quiz_winner(student_name: str, student_code: str, topic: str, s
             return False, f"⚠️ Lỗi Discord Webhook (HTTP {status_code}): {body}"
 
     return True, f"💡 [MOCK DISCORD] Winner Announced: {student_name} (+{score} pts)"
+
+
+def send_discord_dm_or_notification(
+    student_name: str,
+    student_code: str,
+    question: str,
+    answer: str,
+    discord_user_id: str = "",
+    override_webhook: str = None
+) -> tuple[bool, str]:
+    """
+    Gửi câu trả lời đã duyệt trực tiếp từ Lab Coach cho học viên đã hỏi qua tin nhắn riêng (Discord DM).
+    Nếu không gửi được DM (ví dụ học viên đóng DM), sẽ fallback gửi tin nhắn thông báo tag tên trên kênh chung.
+    """
+    bot_token, channel_id, env_webhook = get_discord_config()
+    webhook_url = override_webhook or env_webhook
+
+    embed = {
+        "title": "💬 MÔN HỌC AI/ML - PHẢN HỒI TỪ LAB COACH",
+        "description": "Dưới đây là câu trả lời chính thức từ Lab Coach cho câu hỏi của bạn:",
+        "color": 0x2EA043,  # Green color
+        "fields": [
+            {
+                "name": "👤 Học viên",
+                "value": f"**{student_name}** (`{student_code}`)",
+                "inline": False
+            },
+            {
+                "name": "❓ Câu hỏi của bạn",
+                "value": question[:1024],
+                "inline": False
+            },
+            {
+                "name": "✅ Phản hồi chính thức từ Lab Coach",
+                "value": answer[:1024],
+                "inline": False
+            }
+        ],
+        "footer": {
+            "text": "VLearn Lab Coach System • Direct Student Response"
+        },
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+
+    # 1. Nếu có bot_token và discord_user_id -> Thử tạo kênh DM và gửi tin nhắn riêng
+    if bot_token and discord_user_id:
+        try:
+            # 1a. Tạo DM Channel với user
+            dm_channel_url = "https://discord.com/api/v10/users/@me/channels"
+            headers = {
+                "Authorization": f"Bot {bot_token}",
+                "Content-Type": "application/json"
+            }
+            dm_payload = {"recipient_id": str(discord_user_id)}
+            status_code, body = _post_json(dm_channel_url, dm_payload, headers)
+            
+            if status_code in [200, 201]:
+                res_data = json.loads(body)
+                dm_channel_id = res_data.get("id")
+                if dm_channel_id:
+                    # 1b. Gửi tin nhắn Embed vào DM Channel
+                    msg_url = f"https://discord.com/api/v10/channels/{dm_channel_id}/messages"
+                    msg_payload = {"embeds": [embed]}
+                    msg_status, msg_body = _post_json(msg_url, msg_payload, headers)
+                    if msg_status in [200, 201]:
+                        return True, f"📩 Đã gửi tin nhắn riêng (DM) thành công tới học viên {student_name}!"
+        except Exception as e:
+            print(f"[Discord DM Error]: {e}")
+
+    # 2. Fallback: Nếu không gửi được DM hoặc không có DM channel, gửi thông báo tag user trên channel chính
+    if bot_token and channel_id:
+        url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+        headers = {"Authorization": f"Bot {bot_token}", "Content-Type": "application/json"}
+        content_mention = f"🔔 <@{discord_user_id}> Lab Coach đã trả lời câu hỏi của bạn!" if discord_user_id else f"🔔 Học viên **{student_name}** (`{student_code}`): Lab Coach đã trả lời câu hỏi của bạn!"
+        payload = {"content": content_mention, "embeds": [embed]}
+        status_code, body = _post_json(url, payload, headers)
+        if status_code in [200, 201]:
+            return True, f"🤖 Đã gửi câu trả lời lên Kênh Discord chung (Mention {student_name})!"
+
+    # 3. Webhook fallback
+    if webhook_url:
+        payload = {"embeds": [embed]}
+        status_code, body = _post_json(webhook_url, payload)
+        if status_code in [200, 204]:
+            return True, f"🔗 Đã gửi câu trả lời qua Discord Webhook!"
+
+    # 4. Mock fallback
+    return True, f"💡 [MOCK DISCORD DM] Answer Sent to {student_name} ({student_code}): '{answer[:50]}...'"
+
 

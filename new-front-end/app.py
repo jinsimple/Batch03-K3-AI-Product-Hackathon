@@ -191,9 +191,10 @@ Trả lời CHỈ bằng JSON, không thêm chữ nào khác, đúng định d�
 {{"matches": ["Tên chính xác 1", "Tên chính xác 2"], "confident": true}}
 """
 
+    model_name = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
     try:
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=model_name,
             max_tokens=200,
             messages=[{"role": "user", "content": prompt}],
         )

@@ -24,7 +24,10 @@ except ImportError:
     sys.exit(1)
 
 from codebase.quiz_manager import process_quiz_answer, get_active_quiz, get_student_points_summary, record_student_submission
+from codebase.question_manager import record_student_question
+from codebase.llm import generate_rag_answer
 from codebase.app import ROSTER, normalize
+
 
 load_dotenv()
 
@@ -106,7 +109,7 @@ def build_total_points_embed(summary: dict) -> discord.Embed:
     else:
         embed.add_field(name="ℹ️ Ghi chú", value="Học viên chưa có điểm cộng nào được ghi nhận.", inline=False)
 
-    embed.set_footer(text="VLearn Lab Coach System • Cổng Tra Cứu Minh Bạch")
+    embed.set_footer(text="VLearn Lab Coach System • Cổng Tra Cứu")
     return embed
 
 
@@ -124,7 +127,22 @@ def build_record_submission_embed(student_name: str, student_code: str, question
     if note:
         embed.add_field(name="📝 Ghi chú", value=note[:1024], inline=False)
     embed.add_field(name="📌 Trạng thái", value="`Chờ duyệt` (Lab Coach đang đối soát)", inline=False)
-    embed.set_footer(text="VLearn Lab Coach System • Cổng Tra Cứu Minh Bạch")
+    embed.set_footer(text="VLearn Lab Coach System • Cổng Tra Cứu")
+    return embed
+
+
+def build_ask_submission_embed(student_name: str, student_code: str, question: str) -> discord.Embed:
+    """Tạo Embed thông báo ghi nhận câu hỏi gửi tới Lab Coach."""
+    embed = discord.Embed(
+        title="📥 ĐÃ GỬI CÂU HỎI TỚI LAB COACH",
+        description="Câu hỏi của bạn đã được chuyển tới mục **'Câu hỏi từ học viên'** trên Web Dashboard.",
+        color=0x5865F2,
+        timestamp=datetime.datetime.now(datetime.timezone.utc)
+    )
+    embed.add_field(name="👤 Học viên", value=f"**{student_name}** (`{student_code}`)", inline=False)
+    embed.add_field(name="❓ Câu hỏi", value=question[:1024], inline=False)
+    embed.add_field(name="📌 Trạng thái", value="`Chờ duyệt` (Lab Coach đang xem xét và sẽ gửi câu trả lời hoàn chỉnh qua DM)", inline=False)
+    embed.set_footer(text="VLearn Lab Coach System • Hỏi Đáp Trực Tuyến")
     return embed
 
 
@@ -164,6 +182,40 @@ async def slash_record(
         note=note
     )
     await interaction.response.send_message(embed=embed)
+
+
+@tree.command(name="ask", description="Hỏi Lab Coach thắc mắc bài học và nhận câu trả lời gợi ý từ AI dựa trên giáo trình")
+@app_commands.describe(
+    question="Nội dung thắc mắc hoặc câu hỏi cần Lab Coach giải đáp"
+)
+async def slash_ask(
+    interaction: discord.Interaction,
+    question: str
+):
+    await interaction.response.defer()
+    student_name, student_code = match_student(interaction.user)
+    
+    # Sinh câu trả lời RAG từ AI dựa vào tài liệu bài giảng và lưu DB cho Lab Coach xem trên Dashboard
+    ai_ans, rag_chunks = generate_rag_answer(question)
+    
+    record_student_question(
+        student_name=student_name,
+        student_code=student_code,
+        question=question,
+        ai_answer=ai_ans,
+        rag_sources=rag_chunks,
+        discord_user_id=str(interaction.user.id),
+        discord_username=str(interaction.user)
+    )
+    
+    embed = build_ask_submission_embed(
+        student_name=student_name,
+        student_code=student_code,
+        question=question
+    )
+    await interaction.followup.send(embed=embed)
+
+
 
 
 @client.event
@@ -264,6 +316,38 @@ async def on_message(message: discord.Message):
             await message.reply(help_msg)
         return
 
+    # 1.6 Xử lý lệnh /ask dạng text: /ask <nội dung câu hỏi>
+    if raw_text.lower().startswith("/ask"):
+        q_content = raw_text[4:].strip()
+        if q_content:
+            student_name, student_code = match_student(message.author)
+            ai_ans, rag_chunks = generate_rag_answer(q_content)
+            record_student_question(
+                student_name=student_name,
+                student_code=student_code,
+                question=q_content,
+                ai_answer=ai_ans,
+                rag_sources=rag_chunks,
+                discord_user_id=str(message.author.id),
+                discord_username=str(message.author)
+            )
+            embed = build_ask_submission_embed(
+                student_name=student_name,
+                student_code=student_code,
+                question=q_content
+            )
+
+            await message.reply(embed=embed)
+        else:
+            help_msg = (
+                "⚠️ **Cú pháp chưa đúng!**\n"
+                "• Sử dụng lệnh Slash `/ask question=<Nội dung câu hỏi>`.\n"
+                "• Hoặc gõ: `/ask <Nội dung câu hỏi>`"
+            )
+            await message.reply(help_msg)
+        return
+
+
 
     # 2. Xử lý trả lời Quiz trắc nghiệm
     clean_text = re.sub(r'<@!?\d+>', '', raw_text).strip().upper()
@@ -296,7 +380,7 @@ async def on_message(message: discord.Message):
         reply_text = (
             f"🎉 **CHÚC MỪNG {message.author.mention}!**\n"
             f"Bạn đã trả lời **ĐÚNG ({selected_option}) & NHANH NHẤT** câu đố trắc nghiệm chủ đề **{topic}**!\n"
-            f"🏆 Phần thưởng: **+{reward:.1f} điểm cộng** đã tự động ghi nhận vào Cổng Tra Cứu Minh Bạch (`{student_code}`)."
+            f"🏆 Phần thưởng: **+{reward:.1f} điểm cộng** đã tự động ghi nhận vào Cổng Tra Cứu (`{student_code}`)."
         )
         await message.reply(reply_text)
     else:
