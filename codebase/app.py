@@ -114,18 +114,20 @@ def send_discord_message(webhook_url: str, content: str):
         return False, f"Lỗi kết nối Discord: {e}"
 
 # --- CẤU HÌNH TRANG & CSS NHẬN DIỆN THƯƠNG HIỆU VLEARN (NAVY + ĐỎ) ---
-st.set_page_config(page_title="Điểm thưởng cho người chăm chỉ", page_icon="⭐", layout="centered")
+st.set_page_config(page_title="Điểm thưởng cho người chăm chỉ", page_icon="⭐", layout="wide")
 
 st.markdown("""
 <style>
 #MainMenu, footer, header {visibility: hidden;}
 .stApp { background: #16233d; }
+
+/* Thùng chứa chính mở rộng ngang và căn giữa */
 .block-container {
-    max-width: 460px;
+    max-width: 1000px;
     background: #ffffff;
     border-radius: 20px;
-    padding: 2rem 1.75rem !important;
-    margin-top: 3rem;
+    padding: 2rem 2.5rem !important;
+    margin: 3rem auto !important;
     box-shadow: 0 8px 30px rgba(0,0,0,0.25);
 }
 .block-container::before {
@@ -137,15 +139,26 @@ st.markdown("""
     border-radius: 4px;
     margin-bottom: 1.5rem;
 }
-h3 { color: #16233d !important; font-weight: 600 !important; }
-p, span, div, label { color: #16233d; }
+
+/* Kiểu chữ nội dung chính - giới hạn trong block-container để không làm mất tương phản ngoài main */
+.block-container h3, .block-container h4, .block-container h5 { 
+    color: #16233d !important; 
+    font-weight: 600 !important; 
+}
+.block-container p, .block-container span, .block-container div, .block-container label { 
+    color: #16233d; 
+}
 .stCaption, [data-testid="stCaptionContainer"] { color: #6b7684 !important; }
+
+/* Ô nhập liệu */
 .stTextInput input {
     background: #f8f9fb !important;
     border: 1.5px solid #e2e5ea !important;
     border-radius: 10px !important;
     color: #16233d !important;
 }
+
+/* Nút bấm */
 .stButton button {
     border-radius: 10px !important;
     border: 1.5px solid #e2e5ea !important;
@@ -156,10 +169,53 @@ p, span, div, label { color: #16233d; }
 .stButton button:hover { border-color: #1e3a6e !important; color: #1e3a6e !important; }
 .stButton button[kind="primary"] { background: #1e3a6e !important; border: none !important; color: #ffffff !important; }
 .stButton button[kind="primary"]:hover { background: #16305e !important; color: #ffffff !important; }
-[data-testid="stMetricValue"], .stRadio label { color: #16233d !important; }
+
+/* Đảm bảo chữ bên trong nút bấm kế thừa màu chữ của nút (không bị đè bởi màu chữ của block-container) */
+.stButton button p,
+.stButton button span,
+.stButton button div {
+    color: inherit !important;
+}
+
+[data-testid="stMetricValue"], .block-container .stRadio label { color: #16233d !important; }
 hr { border-color: #eef0f3 !important; }
-/* Sidebar styling override for dark mode readability */
-[data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {
+
+/* Tùy chỉnh sidebar để có giao diện tối màu, tương phản cao */
+[data-testid="stSidebar"] {
+    background-color: #0f172a !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] h4,
+[data-testid="stSidebar"] h5,
+[data-testid="stSidebar"] h6,
+[data-testid="stSidebar"] p, 
+[data-testid="stSidebar"] label, 
+[data-testid="stSidebar"] span {
+    color: #f8f9fb !important;
+}
+/* Đảm bảo ô nhập liệu trong sidebar giữ chữ tối trên nền sáng */
+[data-testid="stSidebar"] .stTextInput input {
+    color: #16233d !important;
+    background-color: #f8f9fb !important;
+}
+
+/* Giữ chữ tối màu trong hộp thông báo Alert ở màn hình chính (để đọc rõ trên nền cảnh báo sáng màu) */
+.block-container [data-testid="stAlert"] p, 
+.block-container [data-testid="stAlert"] span, 
+.block-container [data-testid="stAlert"] div {
+    color: #0f172a !important;
+}
+
+/* Tùy chỉnh hộp thông báo Alert trong sidebar: chữ sáng, viền tinh tế trên nền tối */
+[data-testid="stSidebar"] [data-testid="stAlert"] {
+    background-color: #1e293b !important;
+    border: 1px solid #334155 !important;
+}
+[data-testid="stSidebar"] [data-testid="stAlert"] p,
+[data-testid="stSidebar"] [data-testid="stAlert"] span,
+[data-testid="stSidebar"] [data-testid="stAlert"] div {
     color: #f8f9fb !important;
 }
 </style>
@@ -225,72 +281,71 @@ with tab1:
     st.markdown("### ⭐ Điểm thưởng cho người chăm chỉ")
     st.caption("VLearn · VinUni AI Thực Chiến — ghi nhận nhanh điểm cộng phát biểu")
     
-    query = st.text_input(
-        "Tên hoặc mã học viên",
-        placeholder="Gõ tên hoặc mã học viên...",
-        label_visibility="collapsed",
+    # Chế độ chọn nhanh bằng Selectbox tự động gợi ý/lọc
+    counts = {s["code"]: 0 for s in ROSTER}
+    for r in db_records:
+        sid = r.get("student_id")
+        if sid and r.get("status") == "Đã đồng bộ":
+            counts[sid] = counts.get(sid, 0) + 1
+            
+    sorted_roster = sorted(ROSTER, key=lambda s: -counts.get(s["code"], 0))
+    options = ["-- Chọn học viên --"] + sorted_roster
+    
+    def format_student(opt):
+        if isinstance(opt, str):
+            return opt
+        name = opt["name"]
+        code = opt["code"]
+        count = counts.get(code, 0)
+        count_str = f" ({count} lần phát biểu)" if count > 0 else ""
+        return f"{name} ({code}){count_str} | {normalize(name)}"
+        
+    # Tìm index hiện tại dựa trên st.session_state.selected
+    current_sel = st.session_state.selected
+    default_index = 0
+    if current_sel:
+        for idx, opt in enumerate(options):
+            if not isinstance(opt, str) and opt["code"] == current_sel:
+                default_index = idx
+                break
+                
+    selected_opt = st.selectbox(
+        "Tên hoặc mã học viên (Chọn nhanh)",
+        options=options,
+        format_func=format_student,
+        index=default_index,
+        label_visibility="collapsed"
     )
     
-    results = local_search(query, db_records) if query else local_search("", db_records)
-    
-    ai_note = None
-    if query and not results:
-        with st.spinner("Không khớp trực tiếp, đang hỏi AI gợi ý..."):
-            use_mock_flag = (run_mode == "Chạy Mock (Offline - Khuyên dùng test nhanh)")
-            
-            # Tính toán roster có count động để gửi làm context cho fuzzy search
-            roster_for_suggest = []
-            counts_map = {s["code"]: 0 for s in ROSTER}
-            for r in db_records:
-                sid = r.get("student_id")
-                if sid and r.get("status") == "Đã đồng bộ":
-                    counts_map[sid] = counts_map.get(sid, 0) + 1
-            for s in ROSTER:
-                roster_for_suggest.append({
-                    "name": s["name"],
-                    "code": s["code"],
-                    "count": counts_map.get(s["code"], 0)
-                })
-                
-            ai_matches, err = ai_fuzzy_suggest_llm(
-                query, 
-                roster_for_suggest, 
-                gemini_api_key=gemini_key, 
-                anthropic_api_key=anthropic_key, 
-                use_mock=use_mock_flag
-            )
-            
-        if err and "Mock" not in err:
-            ai_note = err
-        elif ai_matches:
-            results = ai_matches
-            ai_note = "Gợi ý từ AI (không khớp trực tiếp theo tên/mã)"
-        else:
-            ai_note = "AI không đủ tự tin để gợi ý — vui lòng nhập lại tên chính xác."
-            
-    if ai_note:
-        st.caption(ai_note)
-        
-    for s in results:
-        cols = st.columns([5, 2, 2])
-        with cols[0]:
-            st.write(f"**{s['name']}**")
-            st.caption(s["code"])
-        with cols[1]:
-            if s["count"] > 0:
-                st.caption(f"Đã {s['count']} lần")
-        with cols[2]:
-            if st.button("Chọn", key=f"pick-{s['code']}"):
-                st.session_state.selected = s["code"]
-                st.session_state.ai_analysis = None
-                st.session_state.last_note = ""
-                st.rerun()
+    if selected_opt != "-- Chọn học viên --":
+        if st.session_state.selected != selected_opt["code"]:
+            st.session_state.selected = selected_opt["code"]
+            st.session_state.scroll_to_grading = True
+            st.session_state.ai_analysis = None
+            st.session_state.last_note = ""
+            st.rerun()
+    else:
+        if st.session_state.selected is not None:
+            st.session_state.selected = None
+            st.session_state.ai_analysis = None
+            st.session_state.last_note = ""
+            st.rerun()
 
     if st.session_state.selected:
         sel = next((s for s in ROSTER if s["code"] == st.session_state.selected), None)
         if sel:
             st.divider()
+            # Khởi tạo thẻ neo để scroll đến khi click nút Chọn
+            st.markdown('<div id="grading-section"></div>', unsafe_allow_html=True)
             st.markdown(f"#### Chấm điểm cho: **{sel['name']}** (`{sel['code']}`)")
+            
+            # Kích hoạt JS scroll nếu flag st.session_state.scroll_to_grading được đặt
+            if st.session_state.get("scroll_to_grading"):
+                st.markdown(
+                    '<img src="x" style="display:none;" onerror="const el = window.parent.document.getElementById(\'grading-section\'); if(el) el.scrollIntoView({behavior: \'smooth\'});">',
+                    unsafe_allow_html=True
+                )
+                st.session_state.scroll_to_grading = False
             
             award_mode = st.radio("Phương thức chấm điểm:", ["Dùng AI phân tích ghi chú", "Chấm điểm nhanh thủ công"], horizontal=True)
             
