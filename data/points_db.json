@@ -185,5 +185,82 @@
     "final_score": 1.0,
     "feedback": "Tuyệt vời! Cảm ơn đóng góp của bạn cho buổi học. Điểm cộng của bạn đã được ghi nhận nháp trên hệ thống với nội dung: 'cộng 3 điểm vì thuyết trình tốt'.",
     "status": "Đã đồng bộ"
+  },
+  {
+    "id": 18,
+    "timestamp": "2026-07-30 14:50:31",
+    "student_id": "2A202601761",
+    "student_name": "Lê Minh Quân",
+    "coach_note": "Chấm điểm nhanh thủ công",
+    "suggested_score": 2.0,
+    "final_score": 2.0,
+    "feedback": "Đã ghi nhận điểm cộng +2.0 phát biểu.",
+    "status": "Đã đồng bộ"
+  },
+  {
+    "id": 19,
+    "timestamp": "2026-07-30 14:51:09",
+    "student_id": "2A202601790",
+    "student_name": "Đỗ Thảo Vy",
+    "coach_note": "Chấm điểm nhanh thủ công",
+    "suggested_score": 3.0,
+    "final_score": 3.0,
+    "feedback": "Đã ghi nhận điểm cộng +3.0 phát biểu.",
+    "status": "Đã đồng bộ"
+  },
+  {
+    "id": 20,
+    "timestamp": "2026-07-30 14:54:03",
+    "student_id": "2A202601756",
+    "student_name": "Trần Thu Linh",
+    "coach_note": "Chấm điểm nhanh thủ công",
+    "suggested_score": 3.0,
+    "final_score": 3.0,
+    "feedback": "Đã ghi nhận điểm cộng +3.0 phát biểu.",
+    "status": "Đã đồng bộ"
+  },
+  {
+    "id": 21,
+    "timestamp": "2026-07-30 14:57:11",
+    "student_id": "2A202601742",
+    "student_name": "Nguyễn Văn Nam",
+    "coach_note": "Chấm điểm nhanh thủ công",
+    "suggested_score": 2.0,
+    "final_score": 2.0,
+    "feedback": "Đã ghi nhận điểm cộng +2.0 phát biểu.",
+    "status": "Đã đồng bộ"
+  },
+  {
+    "id": 22,
+    "timestamp": "2026-07-30 14:58:11",
+    "student_id": "2A202601742",
+    "student_name": "Nguyễn Văn Nam",
+    "coach_note": "Chấm điểm nhanh thủ công",
+    "suggested_score": 2.0,
+    "final_score": 2.0,
+    "feedback": "Đã ghi nhận điểm cộng +2.0 phát biểu.",
+    "status": "Đã đồng bộ"
+  },
+  {
+    "id": 23,
+    "timestamp": "2026-07-30 15:01:31",
+    "student_id": "2A202601778",
+    "student_name": "Phạm Bảo An",
+    "coach_note": "Chấm điểm nhanh thủ công",
+    "suggested_score": 2.0,
+    "final_score": 2.0,
+    "feedback": "Đã ghi nhận điểm cộng +2.0 phát biểu.",
+    "status": "Đã đồng bộ"
+  },
+  {
+    "id": 24,
+    "timestamp": "2026-07-30 15:03:34",
+    "student_id": "2A202601756",
+    "student_name": "Trần Thu Linh",
+    "coach_note": "Chấm điểm nhanh thủ công",
+    "suggested_score": 2.0,
+    "final_score": 2.0,
+    "feedback": "Đã ghi nhận điểm cộng +2.0 phát biểu.",
+    "status": "Đã đồng bộ"
   }
 ]

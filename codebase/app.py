@@ -26,6 +26,7 @@ if __name__ == "__main__" and not st.runtime.exists():
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from codebase.llm import analyze_grading_note, ai_fuzzy_suggest_llm
+from codebase.discord_notifier import send_discord_score_notification, get_discord_config
 
 # Đường dẫn lưu trữ database cục bộ
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "points_db.json")
@@ -182,7 +183,6 @@ run_mode = st.sidebar.radio(
 
 gemini_key = ""
 anthropic_key = ""
-discord_webhook = ""
 
 if run_mode == "Kết nối API thật":
     gemini_key = st.sidebar.text_input("Nhập Gemini API Key:", type="password", help="Dùng cho chấm điểm AI và tìm kiếm fuzzy")
@@ -192,7 +192,18 @@ if run_mode == "Kết nối API thật":
 else:
     st.sidebar.info("Đang chạy ở chế độ Mock giả lập (không cần API key, tự động xử lý các tình huống khó).")
 
-discord_webhook = st.sidebar.text_input("Discord Webhook URL (Tùy chọn):", type="password", placeholder="https://discord.com/api/webhooks/...")
+st.sidebar.write("---")
+st.sidebar.subheader("🤖 Discord Bot Notifier")
+bot_token_env, channel_id_env, webhook_env = get_discord_config()
+
+if bot_token_env and channel_id_env:
+    st.sidebar.success("✅ Discord Bot API: Đã kết nối (.env)")
+elif webhook_env:
+    st.sidebar.info("🔗 Discord Webhook: Đã kết nối (.env)")
+else:
+    st.sidebar.caption("💡 Trạng thái: Mock Notifier (Chưa cấu hình Token/Webhook trong `.env`)")
+
+discord_webhook = st.sidebar.text_input("Override Webhook URL (Tùy chọn):", type="password", placeholder="https://discord.com/api/webhooks/...")
 
 st.sidebar.write("---")
 st.sidebar.write("📊 **Quản lý dữ liệu**")
@@ -345,10 +356,18 @@ with tab1:
                             db_records.append(new_record)
                             save_db(db_records)
                             
-                            discord_content = f"⏳ [CHỜ DUYỆT] Học viên {sel['name']} ({sel['code']}) được cộng +{final_score} điểm. Ghi chú: {st.session_state.last_note}. Feedback: {final_feedback}"
-                            send_discord_message(discord_webhook, discord_content)
+                            _, discord_msg = send_discord_score_notification(
+                                student_name=sel["name"],
+                                student_code=sel["code"],
+                                final_score=final_score,
+                                coach_note=st.session_state.last_note,
+                                feedback=final_feedback,
+                                status="Chờ duyệt",
+                                suggested_score=suggested_score,
+                                override_webhook=discord_webhook
+                            )
                             
-                            st.success(f"Đã lưu nháp cho {sel['name']}!")
+                            st.success(f"Đã lưu nháp cho {sel['name']}! ({discord_msg})")
                             st.session_state.selected = None
                             st.session_state.ai_analysis = None
                             st.session_state.last_note = ""
@@ -370,10 +389,18 @@ with tab1:
                             db_records.append(new_record)
                             save_db(db_records)
                             
-                            discord_content = f"⭐ [ĐÃ ĐỒNG BỘ] Học viên {sel['name']} ({sel['code']}) được cộng +{final_score} điểm! Ghi chú: {st.session_state.last_note}. Feedback: {final_feedback}"
-                            send_discord_message(discord_webhook, discord_content)
+                            _, discord_msg = send_discord_score_notification(
+                                student_name=sel["name"],
+                                student_code=sel["code"],
+                                final_score=final_score,
+                                coach_note=st.session_state.last_note,
+                                feedback=final_feedback,
+                                status="Đã đồng bộ",
+                                suggested_score=suggested_score,
+                                override_webhook=discord_webhook
+                            )
                             
-                            st.success(f"Đã đồng bộ điểm cho {sel['name']}!")
+                            st.success(f"Đã đồng bộ điểm cho {sel['name']}! ({discord_msg})")
                             st.session_state.selected = None
                             st.session_state.ai_analysis = None
                             st.session_state.last_note = ""
@@ -396,14 +423,23 @@ with tab1:
                     db_records.append(new_record)
                     save_db(db_records)
                     
-                    discord_content = f"⭐ [ĐÃ ĐỒNG BỘ] Học viên {sel['name']} ({sel['code']}) được cộng nhanh +{points} điểm!"
-                    send_discord_message(discord_webhook, discord_content)
+                    _, discord_msg = send_discord_score_notification(
+                        student_name=sel["name"],
+                        student_code=sel["code"],
+                        final_score=points,
+                        coach_note="Chấm điểm nhanh thủ công",
+                        feedback=f"Đã ghi nhận điểm cộng +{points} phát biểu.",
+                        status="Đã đồng bộ",
+                        suggested_score=points,
+                        override_webhook=discord_webhook
+                    )
                     
-                    st.success(f"Đã cộng +{points} điểm cho {sel['name']}. (Mock) Thông báo Discord đã gửi.")
+                    st.success(f"Đã cộng +{points} điểm cho {sel['name']}. ({discord_msg})")
                     st.session_state.selected = None
                     st.session_state.ai_analysis = None
                     st.session_state.last_note = ""
                     st.rerun()
+
                     
             if st.button("Đóng bảng chấm điểm"):
                 st.session_state.selected = None
