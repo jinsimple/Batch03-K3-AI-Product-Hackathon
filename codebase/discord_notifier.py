@@ -156,3 +156,110 @@ def send_discord_score_notification(
     # 3. Fallback Mock Notifier khi chạy Offline hoặc thiếu cấu hình
     mock_msg = f"[MOCK DISCORD BOT] Notified {status}: {student_name} ({student_code}) +{final_score} pts."
     return True, f"💡 {mock_msg} (Chưa cấu hình DISCORD_BOT_TOKEN/CHANNEL_ID hoặc WEBHOOK_URL trong .env)"
+
+
+def build_quiz_embed(quiz_data: dict, reward_score: float = 1.0) -> dict:
+    """Tạo Discord Rich Embed đính kèm 4 phương án lựa chọn trắc nghiệm."""
+    topic = quiz_data.get("topic", "Trắc nghiệm AI/ML")
+    question = quiz_data.get("question", "")
+    options = quiz_data.get("options", {})
+
+    options_text = ""
+    for opt_key in ["A", "B", "C", "D"]:
+        if opt_key in options:
+            options_text += f"**{opt_key}.** {options[opt_key]}\n\n"
+
+    embed = {
+        "title": f"🎮 AI QUIZ TRẮC NGHIỆM: {topic.upper()}",
+        "description": f"### ❓ {question}\n\n{options_text}",
+        "color": 0x5865F2,  # Discord Blurple Color
+        "fields": [
+            {
+                "name": "🎁 Phần thưởng",
+                "value": f"**+{reward_score:.1f} điểm cộng** vào bảng điểm Lab Coach cho học viên trả lời **ĐÚNG & NHANH NHẤT**!",
+                "inline": False
+            },
+            {
+                "name": "📌 Hướng dẫn",
+                "value": "Chọn đáp án đúng (A, B, C hoặc D) ngay trong ứng dụng hoặc phản hồi bot trên Discord.",
+                "inline": False
+            }
+        ],
+        "footer": {
+            "text": "VLearn AI Quiz Engine • First-Come, First-Served Rewards"
+        },
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+    return embed
+
+
+def send_discord_quiz_notification(quiz_data: dict, reward_score: float = 1.0, override_webhook: str = None) -> tuple[bool, str]:
+    """Gửi bài Quiz trắc nghiệm đính kèm phương án lên Discord."""
+    bot_token, channel_id, env_webhook = get_discord_config()
+    webhook_url = override_webhook or env_webhook
+    embed = build_quiz_embed(quiz_data, reward_score=reward_score)
+
+    if bot_token and channel_id:
+        url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+        headers = {"Authorization": f"Bot {bot_token}", "Content-Type": "application/json"}
+        payload = {"embeds": [embed]}
+        status_code, body = _post_json(url, payload, headers)
+        if status_code in [200, 201]:
+            return True, "🤖 Đã phát bài Quiz trắc nghiệm lên Discord qua Bot API!"
+        else:
+            return False, f"⚠️ Lỗi Discord Bot API (HTTP {status_code}): {body}"
+
+    if webhook_url:
+        payload = {"embeds": [embed]}
+        status_code, body = _post_json(webhook_url, payload)
+        if status_code in [200, 204]:
+            return True, "🔗 Đã phát bài Quiz trắc nghiệm lên Discord qua Webhook!"
+        else:
+            return False, f"⚠️ Lỗi Discord Webhook (HTTP {status_code}): {body}"
+
+    mock_msg = f"[MOCK DISCORD BOT] Quiz Broadcasted: '{quiz_data.get('topic')}' (+{reward_score} pts)"
+    return True, f"💡 {mock_msg} (Chưa cấu hình Token/Webhook trong `.env`)"
+
+
+def send_discord_quiz_winner(student_name: str, student_code: str, topic: str, score: float = 1.0, override_webhook: str = None) -> tuple[bool, str]:
+    """Gửi thông báo vinh danh người thắng cuộc lên Discord."""
+    bot_token, channel_id, env_webhook = get_discord_config()
+    webhook_url = override_webhook or env_webhook
+
+    embed = {
+        "title": "🏆 VINH DANH NGƯỜI THẮNG AI QUIZ!",
+        "description": f"Chúc mừng học viên **{student_name}** (`{student_code}`) đã xuất sắc trả lời **ĐÚNG & NHANH NHẤT** câu đố trắc nghiệm chủ đề **{topic}**!",
+        "color": 0xFEE75C,  # Gold Color
+        "fields": [
+            {
+                "name": "🎯 Điểm phần thưởng",
+                "value": f"**+{score:.1f} điểm** (Đã tự động ghi nhận vào Cổng Tra Cứu Minh Bạch)",
+                "inline": True
+            }
+        ],
+        "footer": {
+            "text": "VLearn AI Quiz Engine • System Synced"
+        },
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+
+    if bot_token and channel_id:
+        url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+        headers = {"Authorization": f"Bot {bot_token}", "Content-Type": "application/json"}
+        payload = {"embeds": [embed]}
+        status_code, body = _post_json(url, payload, headers)
+        if status_code in [200, 201]:
+            return True, f"🏆 Đã vinh danh {student_name} trên Discord!"
+        else:
+            return False, f"⚠️ Lỗi Discord Bot API (HTTP {status_code}): {body}"
+
+    if webhook_url:
+        payload = {"embeds": [embed]}
+        status_code, body = _post_json(webhook_url, payload)
+        if status_code in [200, 204]:
+            return True, f"🏆 Đã vinh danh {student_name} trên Discord!"
+        else:
+            return False, f"⚠️ Lỗi Discord Webhook (HTTP {status_code}): {body}"
+
+    return True, f"💡 [MOCK DISCORD] Winner Announced: {student_name} (+{score} pts)"
+

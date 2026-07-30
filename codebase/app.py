@@ -25,8 +25,15 @@ if __name__ == "__main__" and not st.runtime.exists():
 # Thêm thư mục gốc vào PYTHONPATH để Python nhận diện module codebase
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from codebase.llm import analyze_grading_note, ai_fuzzy_suggest_llm
-from codebase.discord_notifier import send_discord_score_notification, get_discord_config
+from codebase.llm import analyze_grading_note, ai_fuzzy_suggest_llm, generate_quiz_question
+from codebase.discord_notifier import (
+    send_discord_score_notification,
+    get_discord_config,
+    send_discord_quiz_notification,
+    send_discord_quiz_winner
+)
+from codebase.quiz_manager import set_active_quiz, get_active_quiz, process_quiz_answer
+
 
 # Đường dẫn lưu trữ database cục bộ
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "points_db.json")
@@ -218,7 +225,7 @@ if st.sidebar.button("Reset Database về mặc định", type="secondary"):
 db_records = load_db()
 
 # --- MAIN WORKSPACE ---
-tab1, tab2 = st.tabs(["✍️ Ghi nhận điểm cộng", "🔍 Tra cứu minh bạch"])
+tab1, tab2, tab3 = st.tabs(["✍️ Ghi nhận điểm cộng", "🔍 Tra cứu minh bạch", "🎮 AI Quiz (Discord)"])
 
 # --- TAB 1: GHI NHẬN ĐIỂM CỘNG ---
 with tab1:
@@ -517,3 +524,154 @@ with tab2:
             st.table(display_records)
         else:
             st.info("Hiện tại chưa có bản ghi điểm cộng nào.")
+
+# --- TAB 3: AI QUIZ & TRẮC NGHIỆM DISCORD ---
+with tab3:
+    st.markdown("### 🎮 AI Quiz & Mini-Game Trắc Nghiệm Discord")
+    st.caption("AI tự động tạo câu hỏi trắc nghiệm · Phát đề lên Discord · Tự động cộng +1.0 điểm cho người trả lời ĐÚNG & NHANH NHẤT!")
+
+    if "current_quiz" not in st.session_state:
+        st.session_state.current_quiz = None
+    if "quiz_status" not in st.session_state:
+        st.session_state.quiz_status = "Chưa phát"
+    if "quiz_winner" not in st.session_state:
+        st.session_state.quiz_winner = None
+    if "quiz_msg" not in st.session_state:
+        st.session_state.quiz_msg = ""
+
+    # Sub-section 1: Sinh câu hỏi với AI
+    st.markdown("#### 1. 🤖 Sinh câu hỏi trắc nghiệm AI")
+    
+    col_q1, col_q2 = st.columns([3, 2])
+    with col_q1:
+        quiz_topic_select = st.selectbox(
+            "Chọn chủ đề kiến thức AI/ML:",
+            [
+                "Overfitting & Underfitting",
+                "Bias-Variance Tradeoff",
+                "Prompt Engineering",
+                "Transformers & Attention",
+                "Chủ đề khác (Tự nhập)"
+            ]
+        )
+    with col_q2:
+        if quiz_topic_select == "Chủ đề khác (Tự nhập)":
+            custom_topic = st.text_input("Gõ chủ đề tùy chỉnh:", placeholder="Ví dụ: RAG, Fine-tuning...")
+            active_topic = custom_topic if custom_topic.strip() else "Kiến thức AI/ML"
+        else:
+            active_topic = quiz_topic_select
+
+    if st.button("✨ Sinh câu hỏi trắc nghiệm mới 🚀", type="primary"):
+        with st.spinner("AI đang soạn câu hỏi trắc nghiệm..."):
+            use_mock_flag = (run_mode == "Chạy Mock (Offline - Khuyên dùng test nhanh)")
+            q_dict, q_msg = generate_quiz_question(
+                topic=active_topic,
+                api_key=gemini_key,
+                use_mock=use_mock_flag
+            )
+            st.session_state.current_quiz = q_dict
+            st.session_state.quiz_status = "Chưa phát"
+            st.session_state.quiz_winner = None
+            st.session_state.quiz_msg = q_msg
+            st.rerun()
+
+    if st.session_state.quiz_msg:
+        st.caption(st.session_state.quiz_msg)
+
+    # Sub-section 2: Xem trước & Đăng bài Quiz
+    if st.session_state.current_quiz:
+        st.divider()
+        st.markdown("#### 2. 📋 Xem trước & Phát đề lên Discord")
+        
+        cq = st.session_state.current_quiz
+        with st.container(border=True):
+            st.markdown(f"**📌 Chủ đề:** `{cq.get('topic', 'AI/ML')}`")
+            st.markdown(f"**❓ Câu hỏi:** {cq.get('question')}")
+            st.markdown("**Các phương án lựa chọn:**")
+            opts = cq.get("options", {})
+            for key in ["A", "B", "C", "D"]:
+                if key in opts:
+                    is_correct_tag = " ✅ *(Đáp án đúng)*" if key == cq.get("correct_option") else ""
+                    st.write(f"- **{key}.** {opts[key]}{is_correct_tag}")
+            st.caption(f"💡 *Giải thích:* {cq.get('explanation')}")
+
+        reward_points = st.number_input("Điểm phần thưởng cho lượt trả lời đúng nhanh nhất:", min_value=0.5, max_value=3.0, value=1.0, step=0.5)
+
+        col_dis1, col_dis2 = st.columns([1, 1])
+        with col_dis1:
+            if st.button("🚀 Gửi Quiz lên Discord Channel", type="primary", use_container_width=True):
+                # Lưu câu hỏi hoạt động vào quiz_manager để Discord Bot Listener nhận diện được
+                set_active_quiz(cq, reward_score=reward_points)
+
+                _, d_msg = send_discord_quiz_notification(
+                    quiz_data=cq,
+                    reward_score=reward_points,
+                    override_webhook=discord_webhook
+                )
+                st.session_state.quiz_status = "Đang diễn ra"
+                st.success(f"Đã phát đề lên Discord! {d_msg}")
+                st.rerun()
+
+        with col_dis2:
+            if st.button("🔄 Đổi câu hỏi khác", use_container_width=True):
+                st.session_state.current_quiz = None
+                st.session_state.quiz_status = "Chưa phát"
+                st.session_state.quiz_winner = None
+                st.session_state.quiz_msg = ""
+                st.rerun()
+
+    # Đồng bộ trạng thái mới nhất từ active_quiz.json (đối với trường hợp Discord Bot tự động xử lý)
+    latest_active = get_active_quiz()
+    if latest_active and latest_active.get("status") == "Đã kết thúc" and latest_active.get("winner"):
+        st.session_state.quiz_status = "Đã kết thúc"
+        st.session_state.quiz_winner = latest_active.get("winner")
+
+    # Sub-section 3: Giả lập / Xử lý câu trả lời Real-time
+    if st.session_state.current_quiz and st.session_state.quiz_status in ["Đang diễn ra", "Đã kết thúc"]:
+        st.divider()
+        st.markdown("#### 3. ⚡ Xử lý câu trả lời & Tự động cộng điểm")
+        
+        if st.session_state.quiz_status == "Đang diễn ra":
+            st.info("🟢 **ĐANG DIỄN RA:** Đang chờ học viên gửi câu trả lời...")
+        else:
+            st.success(f"🔴 **ĐÃ KẾT THÚC:** Người chiến thắng: **{st.session_state.quiz_winner}**")
+
+        st.markdown("**Giả lập / Nộp đáp án trực tiếp:**")
+        
+        sim_col1, sim_col2 = st.columns([2, 1])
+        with sim_col1:
+            student_select_list = [f"{s['code']} - {s['name']}" for s in ROSTER]
+            sim_student = st.selectbox("Chọn học viên thực hiện trả lời:", options=student_select_list)
+        with sim_col2:
+            sim_ans = st.selectbox("Chọn đáp án:", options=["A", "B", "C", "D"])
+
+        if st.button("🎯 Nộp đáp án trả lời!", type="primary", use_container_width=True):
+            parts = sim_student.split(" - ", 1)
+            st_code, st_name = parts[0], parts[1]
+
+            is_success, msg, _ = process_quiz_answer(
+                student_name=st_name,
+                student_code=st_code,
+                answer_option=sim_ans
+            )
+
+            if is_success:
+                st.session_state.quiz_status = "Đã kết thúc"
+                st.session_state.quiz_winner = f"{st_name} ({st_code})"
+
+                # Vinh danh lên Discord
+                _, w_msg = send_discord_quiz_winner(
+                    student_name=st_name,
+                    student_code=st_code,
+                    topic=st.session_state.current_quiz.get('topic', 'AI/ML'),
+                    score=reward_points,
+                    override_webhook=discord_webhook
+                )
+
+                st.balloons()
+                st.success(f"{msg} ({w_msg})")
+                st.rerun()
+            else:
+                st.error(msg)
+
+

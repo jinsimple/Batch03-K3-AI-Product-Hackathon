@@ -262,5 +262,27 @@
     "final_score": 2.0,
     "feedback": "Đã ghi nhận điểm cộng +2.0 phát biểu.",
     "status": "Đã đồng bộ"
+  },
+  {
+    "id": 25,
+    "timestamp": "2026-07-30 15:29:37",
+    "student_id": "2A202601761",
+    "student_name": "Lê Minh Quân",
+    "coach_note": "Chấm điểm nhanh thủ công",
+    "suggested_score": 3.0,
+    "final_score": 3.0,
+    "feedback": "Đã ghi nhận điểm cộng +3.0 phát biểu.",
+    "status": "Đã đồng bộ"
+  },
+  {
+    "id": 26,
+    "timestamp": "2026-07-30 15:57:23",
+    "student_id": "DISCORD_TATHANKOCHI",
+    "student_name": "tathan",
+    "coach_note": "Thắng AI Quiz Discord (Chủ đề: Prompt Engineering)",
+    "suggested_score": 1.5,
+    "final_score": 1.5,
+    "feedback": "🎉 Bạn là người trả lời ĐÚNG & NHANH NHẤT bài Quiz 'Prompt Engineering'. Đã được +1.5 điểm!",
+    "status": "Đã đồng bộ"
   }
 ]

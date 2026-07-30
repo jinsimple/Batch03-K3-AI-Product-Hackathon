@@ -1,0 +1,17 @@
+{
+  "id": "quiz_1785401817",
+  "topic": "Prompt Engineering",
+  "question": "Kỹ thuật 'Few-shot Prompting' khi làm việc với các Mô hình Ngôn ngữ Lớn (LLM) là gì?",
+  "options": {
+    "A": "Hỏi AI đúng 1 câu duy nhất không kèm hướng dẫn.",
+    "B": "Cung cấp một vài ví dụ minh họa (input-output mẫu) trong prompt để AI bắt chước định dạng.",
+    "C": "Chia nhỏ câu hỏi thành 10 prompt liên tiếp cho AI trả lời.",
+    "D": "Tắt tính năng temperature của LLM về 0."
+  },
+  "correct_option": "B",
+  "explanation": "Few-shot Prompting là việc đưa thêm một vài cặp ví dụ minh họa vào ngữ cảnh prompt giúp LLM hiểu định dạng và yêu cầu đầu ra chính xác hơn.",
+  "reward_score": 1.5,
+  "status": "Đã kết thúc",
+  "winner": "tathan (DISCORD_TATHANKOCHI)",
+  "created_at": "2026-07-30 15:56:57"
+}
