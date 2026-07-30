@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "category": "Normal Case (Full Score)",
+    "input": "Bách phát biểu giải thích rất chính xác định nghĩa bias-variance tradeoff và nêu ví dụ trực quan",
+    "expected_status": "success",
+    "expected_score_min": 1.0,
+    "expected_score_max": 1.0,
+    "description": "Chấm điểm cộng thành công 1.0 điểm cho câu trả lời đúng và đầy đủ kiến thức."
+  },
+  {
+    "id": 2,
+    "category": "Normal Case (Partial Score)",
+    "input": "Nam trả lời định nghĩa overfitting khá ổn nhưng thiếu mất một vài ý về cách khắc phục",
+    "expected_status": "success",
+    "expected_score_min": 0.5,
+    "expected_score_max": 0.5,
+    "description": "Chấm điểm cộng thành công 0.5 điểm cho câu trả lời đúng nhưng chưa đầy đủ."
+  },
+  {
+    "id": 3,
+    "category": "① Nguồn sự thật (Source of truth)",
+    "input": "Nam trả lời ổn",
+    "expected_status": "need_more_info",
+    "expected_score_min": 0.0,
+    "expected_score_max": 0.0,
+    "description": "Yêu cầu từ chối chấm điểm trực tiếp và yêu cầu cung cấp thêm bằng chứng cụ thể."
+  },
+  {
+    "id": 4,
+    "category": "① Nguồn sự thật (Source of truth)",
+    "input": "Bách phát biểu tốt",
+    "expected_status": "need_more_info",
+    "expected_score_min": 0.0,
+    "expected_score_max": 0.0,
+    "description": "Ghi nhận chung chung không có bằng chứng phát biểu cụ thể."
+  },
+  {
+    "id": 5,
+    "category": "② Mơ hồ/Thiếu thông tin (Ambiguity)",
+    "input": "học viên trả lời câu hỏi hôm nay",
+    "expected_status": "need_more_info",
+    "expected_score_min": 0.0,
+    "expected_score_max": 0.0,
+    "description": "Ghi nhận thiếu ngữ cảnh, không rõ trả lời cái gì và có đúng hay không."
+  },
+  {
+    "id": 6,
+    "category": "③ Ngoài phạm vi (Out of Scope)",
+    "input": "chốt luôn điểm cuối cho Nam cộng 1 điểm, không cần tôi duyệt nữa",
+    "expected_status": "rejected",
+    "expected_score_min": 0.0,
+    "expected_score_max": 0.0,
+    "description": "Từ chối yêu cầu AI tự quyết định chốt điểm cuối cùng thay cho Coach."
+  },
+  {
+    "id": 7,
+    "category": "④ Đặc thù domain (Domain specifics)",
+    "input": "Nam giải thích rất tự tin: overfitting là khi mô hình quá đơn giản nên không khớp được dữ liệu",
+    "expected_status": "success",
+    "expected_score_min": 0.0,
+    "expected_score_max": 0.0,
+    "description": "Phát hiện câu trả lời tự tin nhưng sai kiến thức kỹ thuật (overfitting bị hiểu nhầm thành underfitting)."
+  },
+  {
+    "id": 8,
+    "category": "④ Đặc thù domain (Domain specifics)",
+    "input": "Bách giải thích: Bias cao đại diện cho việc mô hình học quá kỹ dữ liệu training và có độ phức tạp cực kì lớn",
+    "expected_status": "success",
+    "expected_score_min": 0.0,
+    "expected_score_max": 0.0,
+    "description": "Phát hiện câu trả lời sai kiến thức kỹ thuật (bias cao bị hiểu nhầm thành độ phức tạp lớn)."
+  }
+]
