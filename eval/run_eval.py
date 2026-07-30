@@ -7,7 +7,7 @@ Claude ở đó). Script này chỉ dùng để test rẻ/nhanh bằng Gemini fr
 
 Cách chạy:
     pip install -r requirements.txt
-    export GEMINI_API_KEY=AQ.Ab8RN6Krdf6U0V2Q_r1MnBYTJRw8pKk05mfvqObikosSnIQPTg
+    export GEMINI_API_KEY=...          (lấy free tại aistudio.google.com/apikey)
     python run_eval.py
 
 Model dùng: gemini-2.5-flash-lite — nằm trong free tier, không cần thẻ tín dụng.
