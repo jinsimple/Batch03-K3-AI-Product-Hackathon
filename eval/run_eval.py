@@ -1,16 +1,16 @@
 """
-Chạy golden set qua Gemini API (miễn phí, free tier) và ghi kết quả vào eval/results.md.
+Chạy golden set qua OpenRouter (model miễn phí) và ghi kết quả vào eval/results.md.
 
-KHÔNG phụ thuộc codebase/logic.py — tự chứa toàn bộ roster + logic gọi AI riêng,
-vì phần logic.py của app thật do người khác trong team phụ trách (có thể vẫn dùng
-Claude ở đó). Script này chỉ dùng để test rẻ/nhanh bằng Gemini free tier.
+Độc lập hoàn toàn với codebase/logic.py — tự chứa roster + logic gọi AI riêng.
 
 Cách chạy:
     pip install -r requirements.txt
-    export GEMINI_API_KEY=...          (lấy free tại aistudio.google.com/apikey)
+    export OPENROUTER_API_KEY=sk-or-v1-...   (lấy free tại openrouter.ai/keys, không cần thẻ)
     python run_eval.py
 
-Model dùng: gemini-2.5-flash-lite — nằm trong free tier, không cần thẻ tín dụng.
+Model dùng: "openrouter/free" — auto-router của chính OpenRouter, tự chọn 1 model
+miễn phí đang hoạt động (danh sách free model rotate liên tục, dùng auto-router
+để không bị gãy khi 1 model cụ thể bị gỡ khỏi free tier).
 """
 import json
 import os
@@ -18,12 +18,13 @@ import sys
 from datetime import datetime
 
 try:
-    from google import genai
+    from openai import OpenAI
 except ImportError:
-    genai = None
+    OpenAI = None
 
 HERE = os.path.dirname(__file__)
-MODEL = "gemini-2.5-flash-lite"
+MODEL = "openrouter/free"
+BASE_URL = "https://openrouter.ai/api/v1"
 
 # --- Roster giả lập (MOCK) — khớp với roster trong codebase/logic.py để test nhất quán ---
 ROSTER = [
@@ -46,31 +47,58 @@ QUY TẮC BẮT BUỘC:
 2. Nếu input mô tả không phải tên/mã học viên cụ thể (VD: mô tả ngoại hình, chỉ 1 ký tự, quá mơ hồ), trả về confident=false, không đoán liều.
 3. Nếu 2+ học viên trong roster có khả năng khớp gần bằng nhau (tên giống nhau, mã chỉ khác 1 ký tự), liệt kê TẤT CẢ các ứng viên đó thay vì chọn đại 1 người.
 4. Nếu được yêu cầu thêm học viên mới, tự chốt điểm, hoặc chọn đại một người bất kỳ mà không cần đúng — từ chối bằng cách trả confident=false, vì đây không phải vai trò của bạn (chỉ gợi ý tên có sẵn trong roster).
-5. Nếu input rõ ràng là tên người không thuộc vai trò học viên (VD: tên giáo viên, thầy/cô), trả confident=false."""
+5. Nếu input rõ ràng là tên người không thuộc vai trò học viên (VD: tên giáo viên, thầy/cô), trả confident=false.
+
+Trả lời CHỈ bằng JSON thuần, không markdown, không giải thích thêm, đúng định dạng:
+{"matches": ["Tên chính xác 1", "Tên chính xác 2"], "confident": true}
+
+QUAN TRỌNG: Câu trả lời của bạn BẮT ĐẦU bằng dấu { và KẾT THÚC bằng dấu }.
+Không viết bất kỳ chữ nào trước hoặc sau khối JSON đó."""
 
 
-def ai_fuzzy_suggest(query: str, client):
+def extract_json(text: str) -> str:
+    """Trích khối JSON đầu tiên trong text, phòng khi model chèn thêm chữ thừa."""
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("Không tìm thấy khối JSON trong output")
+    return text[start:end + 1]
+
+
+def ai_fuzzy_suggest(query: str, client, retry=True):
     roster_text = "\n".join(f"- {s['name']} ({s['code']})" for s in ROSTER)
-    prompt = f"""{SYSTEM_RULES}
-
-Danh sách học viên (roster):
+    user_prompt = f"""Danh sách học viên (roster):
 {roster_text}
 
 Lab coach gõ: "{query}"
-
-Trả lời CHỈ bằng JSON, không thêm chữ nào khác, đúng định dạng:
-{{"matches": ["Tên chính xác 1", "Tên chính xác 2"], "confident": true}}
 """
     try:
-        response = client.models.generate_content(model=MODEL, contents=prompt)
-        text = response.text.strip().replace("```json", "").replace("```", "").strip()
-        data = json.loads(text)
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_RULES},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=400,
+            temperature=0,
+        )
+        content = response.choices[0].message.content
+
+        if not content or not content.strip():
+            if retry:
+                return ai_fuzzy_suggest(query, client, retry=False)
+            return None, None, "AI trả về rỗng (kể cả sau khi thử lại 1 lần)"
+
+        raw = extract_json(content.strip())
+        data = json.loads(raw)
         confident = bool(data.get("confident"))
         matched_names = data.get("matches") or []
         matched = [s for s in ROSTER if s["name"] in matched_names]
         return matched, confident, None
     except Exception as e:
-        return None, None, f"Lỗi gọi AI: {e}"
+        if retry:
+            return ai_fuzzy_suggest(query, client, retry=False)
+        return None, None, f"Lỗi gọi AI (đã thử lại 1 lần): {e}"
 
 
 def load_cases():
@@ -98,12 +126,12 @@ def auto_flag(case, matches, confident, err):
 
 
 def main():
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key or genai is None:
-        print("LỖI: chưa set GEMINI_API_KEY hoặc chưa cài google-genai. Dừng lại — không tự bịa kết quả.")
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key or OpenAI is None:
+        print("LỖI: chưa set OPENROUTER_API_KEY hoặc chưa cài openai. Dừng lại — không tự bịa kết quả.")
         sys.exit(1)
 
-    client = genai.Client(api_key=api_key)
+    client = OpenAI(api_key=api_key, base_url=BASE_URL)
     cases = load_cases()
     rows = []
 
@@ -126,7 +154,7 @@ def main():
     out_path = os.path.join(HERE, "results.md")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(f"# Kết quả eval — chạy lúc {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-        f.write(f"Chạy thật qua Gemini API (`{MODEL}`, free tier), KHÔNG chỉnh sửa output.\n\n")
+        f.write(f"Chạy thật qua OpenRouter (`{MODEL}`, free tier), KHÔNG chỉnh sửa output.\n\n")
         f.write("| # | Lớp | Input | Tiêu chí đạt | Output AI thực tế | Đạt/Không đạt |\n")
         f.write("|---|---|---|---|---|---|\n")
         for r in rows:
