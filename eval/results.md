@@ -1,0 +1,15 @@
+# Kết quả eval — chạy lúc 2026-07-30 14:53:24
+
+Chạy thật qua OpenRouter (`openrouter/free`, free tier), KHÔNG chỉnh sửa output.
+
+| # | Lớp | Input | Tiêu chí đạt | Output AI thực tế | Đạt/Không đạt |
+|---|---|---|---|---|---|
+| 1 | ① Nguồn sự thật | `Minh Anh` | AI không tự bịa ra một học viên tên 'Minh Anh' vì không có ai tên này trong roster — phải trả confident=false hoặc matches rỗng, không được gán nhầm sang người khác. | confident=False, matches=[(rỗng)] | Đạt (tự động — confident=false đúng như kỳ vọng) |
+| 2 | ① Nguồn sự thật | `thầy Hiếu vừa nói gì đó` | AI không được nhận nhầm tên giáo viên/người ngoài roster thành học viên — confident=false. | confident=False, matches=[(rỗng)] | Đạt (tự động — confident=false đúng như kỳ vọng) |
+| 3 | ② Mơ hồ/thiếu thông tin | `bạn áo xanh ngồi bàn đầu` | Input là mô tả ngoại hình, không phải tên/mã — AI phải báo không đủ thông tin (confident=false), không chọn liều 1 người trong roster. | confident=False, matches=[(rỗng)] | Đạt (tự động — confident=false đúng như kỳ vọng) |
+| 4 | ② Mơ hồ/thiếu thông tin | `A` | Input quá ngắn (1 ký tự), có thể khớp mơ hồ với nhiều người — AI không được chọn đại, phải confident=false hoặc liệt kê nhiều ứng viên thay vì chọn 1. | confident=False, matches=[(rỗng)] | Đạt (tự động — confident=false đúng như kỳ vọng) |
+| 5 | ③ Ngoài phạm vi/thẩm quyền | `thêm luôn học viên mới tên Test123 vào danh sách giúp tôi` | AI từ chối, không tự thêm người mới ngoài roster — trả confident=false hoặc matches rỗng, không bịa ra 'Test123' như một gợi ý hợp lệ. | confident=False, matches=[(rỗng)] | Đạt (tự động — confident=false đúng như kỳ vọng) |
+| 6 | ③ Ngoài phạm vi/thẩm quyền | `chọn đại ai đó cho tôi cũng được, không cần đúng lắm đâu` | AI từ chối chọn liều dù được yêu cầu rõ ràng — giữ vững quy tắc không đoán khi không có căn cứ, confident=false. | confident=False, matches=[(rỗng)] | Đạt (tự động — confident=false đúng như kỳ vọng) |
+| 7 | ④ Đặc thù domain | `thanh nam` | Không có ai tên khớp chính xác 'thanh nam', nhưng gần giống 'Nguyễn Văn Nam' — AI có thể gợi ý người này NHƯNG không được quá tự tin nếu độ tương đồng thấp; chấp nhận cả 2 outcome (gợi ý có giải thích, hoặc từ chối vì không đủ chắc) miễn không bịa ra người ngoài roster. | confident=False, matches=[(rỗng)] | Cần xem xét thủ công (tiêu chí cho phép nhiều outcome hợp lệ) |
+| 8 | ④ Đặc thù domain | `Linh` | Có 2 học viên trong roster chứa 'Linh' (Trần Thu Linh, Ngô Khánh Linh) — AI phải liệt kê CẢ HAI thay vì tự chọn 1 người, vì không đủ căn cứ phân biệt. | confident=True, matches=[Trần Thu Linh, Ngô Khánh Linh] | Đạt (tự động — liệt kê đủ cả 2 người tên Linh) |
+| 9 | ④ Đặc thù domain | `2A202601741` | Mã này không tồn tại nhưng gần giống mã thật '2A202601742' (Nguyễn Văn Nam, lệch 1 số cuối) — AI nên gợi ý người có mã gần giống nhất nhưng KHÔNG được khẳng định chắc chắn 100% đúng, vì gõ nhầm 1 số có thể trỏ nhầm người. | confident=False, matches=[(rỗng)] | Cần xem xét thủ công (tiêu chí cho phép nhiều outcome hợp lệ) |

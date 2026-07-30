@@ -14,61 +14,65 @@ AI gợi ý mức điểm cộng + feedback ngắn cho lab coach, dựa trên gh
 
 ## 1. Problem Statement (Bối cảnh & Pain point)
 
-**Ai:** Lab coach phụ trách lớp offline tại VinUni, trong bối cảnh khóa học quản lý ~1.000 học viên/ngày.
+**Ai:** Học viên tại khóa AI thực chiến VinUni — người trực tiếp chịu ảnh hưởng khi giơ tay phát biểu mà không chắc điểm cộng có được ghi nhận. (Lab coach vẫn là người thao tác nhập điểm trong công cụ, nhưng **trọng tâm evidence và giá trị sản phẩm nghiêng về phía học viên** — xem lý do ở mục 1.1.)
 
-**Đang làm gì:** Ghi nhận điểm cộng cho học viên khi họ giơ tay trả lời câu hỏi trong buổi học.
+**Đang làm gì:** Giơ tay trả lời câu hỏi trong buổi học, kỳ vọng được ghi nhận điểm cộng minh bạch.
 
-**Vướng đâu:** Quy trình hiện tại là thủ công — lab coach tự ghi lại tại chỗ, hoặc học viên tự note câu trả lời lên Discord rồi lab coach tổng hợp lại sau buổi. Không có công cụ hỗ trợ đánh giá nhanh mức độ liên quan/chất lượng câu trả lời để quy ra điểm.
+**Vướng đâu:** Quy trình hiện tại là thủ công — lab coach tự ghi lại tại chỗ, hoặc học viên tự note câu trả lời lên Discord rồi lab coach tổng hợp lại sau buổi. Học viên không có cách nào biết chắc điểm của mình đã được ghi nhận hay chưa cho đến khi tổng kết.
 
-**Hậu quả:**
-- Tốn thời gian lab coach (ghi tại chỗ trong lúc vẫn phải dạy + tổng hợp sau)
-- Dễ sai sót/bỏ sót điểm, đặc biệt khi phụ trách nhiều học viên/nhiều lớp trong ngày
-- Thiếu minh bạch với học viên — học viên không chắc điểm mình có được ghi nhận đúng, dẫn đến tốn công tự note phòng hờ, hoặc ngần ngại giơ tay lần sau
+**Hậu quả (phía học viên, có evidence — xem mục 2):**
+- 60% học viên khảo sát (9/15) không chắc chắn hoặc nghi ngờ điểm cộng của mình có được ghi đúng
+- Cảm giác hụt hẫng, hoang mang khi không chắc có nên hỏi lại lab coach hay không
+- Một số phải tự note phòng hờ hoặc chấp nhận rủi ro mất điểm
 
 **Vì sao Hướng C:** Pain point này không nằm trong data pack có sẵn của Hướng A (VLearn)/B (Discord trợ lý). Team chọn tự xây evidence từ đầu (khảo sát) để đổi lấy việc giải quyết đúng pain đã tự trải nghiệm trực tiếp.
+
+### 1.1 Vì sao nghiêng về phía học viên thay vì lab coach
+
+Ban đầu team dự định cân bằng evidence giữa 2 phía (lab coach + học viên). Sau khi **tự phỏng vấn trực tiếp lab coach**, team nhận thấy: nhu cầu phía lab coach không rõ ràng — họ điền/báo cáo dữ liệu điểm cộng chủ yếu **cho bên quản lý xem**, chưa thật sự quan tâm đến trải nghiệm minh bạch phía học viên. Đây là quan sát định tính (1 cuộc phỏng vấn), không phải kết luận thống kê.
+
+Ngược lại, khảo sát định lượng phía học viên (n=15) cho kết quả rõ ràng và vượt ngưỡng yêu cầu (≥50%). Vì vậy team quyết định **dùng học viên làm persona chính để chứng minh giá trị sản phẩm**, trong khi lab coach vẫn giữ vai trò người thao tác (do đặc thù vận hành lớp — chỉ lab coach mới có quyền ghi điểm), nhưng không còn là trọng tâm evidence.
 
 ---
 
 ## 2. Bằng chứng (Evidence) — R1, 15đ
 
 ### 2.1 Phương pháp thu thập
-- Khảo sát học viên: Google Form, phát qua Discord khóa + trực tiếp cuối buổi học
-- Khảo sát lab coach: phỏng vấn trực tiếp/nhắn riêng (số lượng ít, cần insight sâu)
+- Khảo sát học viên: Jotform, phát qua Discord khóa + trực tiếp cuối buổi học — **n=15**
+- Lab coach: phỏng vấn trực tiếp 1-1 (định tính, không phải khảo sát diện rộng — xem lý do ở mục 1.1)
 - Chi tiết bảng câu hỏi: xem `evidence/khao-sat-cham-diem-cong.md`
 
 ### 2.2 Số liệu tổng hợp
-🔲 TODO — điền sau khi thu đủ khảo sát:
 
-| Chỉ số | Học viên | Lab coach |
-|---|---|---|
-| Số người trả lời | 🔲 (mục tiêu ≥15-20) | 🔲 (mục tiêu ≥5) |
-| % xác nhận pain point là thật | 🔲 (mục tiêu ≥50%) | 🔲 |
-| Tần suất giơ tay TB/tuần | 🔲 | — |
-| % buổi có sai sót ghi điểm | — | 🔲 |
-| Thời gian tốn thêm mỗi buổi | 🔲 (phút/lần tự note) | 🔲 (phút/buổi tổng hợp) |
+| Chỉ số | Học viên (n=15) |
+|---|---|
+| % xác nhận pain point (không chắc/nghi ngờ điểm có ghi đúng) | **60% (9/15)** — đạt ngưỡng ≥50% |
+| Phân bố chi tiết | 40% "chắc chắn có ghi đủ" · 40% "không chắc" · 20% "khá chắc nhưng thỉnh thoảng nghi ngờ" |
+| Tần suất giơ tay/tuần | 6 người: 0 lần · 6 người: 1-2 lần · 3 người: 3-5 lần |
+| Đồng ý dùng thử trước demo | 12/15 |
+| Đồng ý cho trích dẫn ẩn danh | 14/15 |
 
-**Cách tính % xác nhận:** gộp các lựa chọn "không chắc/thiếu điểm" (Q3, khảo sát học viên) và "thỉnh thoảng/khá thường xuyên có sai sót" (Q5, khảo sát lab coach). Chi tiết công thức trong file khảo sát.
+**Cách tính % xác nhận:** gộp 2 lựa chọn "không chắc" và "khá chắc nhưng thỉnh thoảng nghi ngờ" ở câu hỏi về mức độ tin tưởng điểm cộng được ghi nhận đúng.
 
-### 2.3 Trích dẫn nguyên văn (≥5 câu, verbatim, chỉ dùng người đã đồng ý)
-🔲 TODO — copy trực tiếp từ Q6/Q8 (học viên) và Q6/Q9 (lab coach), giữ ẩn danh:
+**Lưu ý về lab coach:** chỉ có 1 phỏng vấn cá nhân — không đủ mẫu để đưa vào bảng số liệu thống kê. Thông tin định tính đã dùng để quyết định hướng đi ở mục 1.1, không dùng làm bằng chứng % ở đây.
 
-1. *[Học viên] "..."*
-2. *[Học viên] "..."*
-3. *[Lab coach] "..."*
-4. *[Lab coach] "..."*
-5. *[Học viên/Lab coach] "..."*
+### 2.3 Trích dẫn nguyên văn (verbatim, chỉ từ người đã đồng ý trích dẫn)
+
+1. *"Sau 1 lần dơ tay mình không thấy lab coach lấy mã sinh viên của mình. Mình thấy hơi hụt hẫn, nhưng sau đó đã hỏi lại lab coach"*
+2. *"Khá hoang mang - không biết là có nên hỏi hay thôi kệ"*
+3. *"Thấy cảm giác hơi buồn vì hụt điểm cộng"*
+4. *"Chắc do tin nhắn trôi"*
+5. *"quy trình chấm điểm lab chưa minh bạch"*
 
 ---
 
 ## 3. Bảng Impact — R1, R2 (≥3 ứng viên, không dùng chữ "AI")
 
-🔲 TODO — 2 ứng viên còn lại điền sau khi đọc câu hỏi mở (Q8 học viên, Q9 lab coach), nhóm theo chủ đề lặp lại. Không tự bịa trước khi có dữ liệu.
-
 | Ứng viên | Số người × tần suất | Tốn gì mỗi lần | Chọn/Loại + lý do |
 |---|---|---|---|
-| Chấm điểm cộng giơ tay | 🔲 | 🔲 | **Chọn** — pain đã tự trải nghiệm, có lát cắt rõ, đo được |
-| 🔲 (ứng viên 2) | 🔲 | 🔲 | 🔲 |
-| 🔲 (ứng viên 3) | 🔲 | 🔲 | 🔲 |
+| Chấm điểm cộng giơ tay | 9/15 học viên xác nhận (60%), tần suất giơ tay phổ biến 1-2 lần/tuần | Hoang mang, hụt hẫng, đôi khi phải tự note phòng hờ | **Chọn** — pain đã tự trải nghiệm, có lát cắt rõ, có evidence n=15 vượt ngưỡng |
+| Quy trình điểm danh (quét mã/điền form điểm danh) | 2/15 nhắc đến độc lập ("Phải quét để điền form điểm danh", "Điểm danh") | Thao tác thủ công lặp lại mỗi buổi | **Loại lúc này** — tín hiệu có lặp lại nhưng còn mỏng (chỉ 2 người), ngoài phạm vi lát cắt đã chọn, để dành làm hướng mở rộng sau |
+| Tài liệu học tập rải rác (tìm slides, nhiều nguồn thông tin) | 2/15, nhưng nội dung không hoàn toàn giống nhau ("Tìm slides", "Nhiều nguồn thông tin rải rác") | Mất thời gian tìm kiếm | **Loại — tín hiệu yếu**, chưa đủ rõ để khẳng định là 1 pain point thống nhất, cần thêm dữ liệu nếu muốn theo hướng này |
 
 ---
 
@@ -157,22 +161,41 @@ Sau khi trao đổi lại, team xác nhận: **AI KHÔNG tham gia việc chấm 
 | 8 | ④ Đặc thù domain | `Linh` | Liệt kê CẢ 2 người tên Linh, không chọn đại 1 |
 | 9 | ④ Đặc thù domain | `2A202601741` (mã gần đúng, lệch 1 số) | Không khẳng định chắc chắn 100% khi mã chỉ gần giống |
 
-🔲 TODO — **cần bạn tự chạy thật**, mình không có `ANTHROPIC_API_KEY` trong môi trường này nên không thể tự chạy giúp (đúng nguyên tắc "chạy thật, không tự bịa" của R4). Cách chạy:
+🔲 TODO — ~~cần bạn tự chạy thật~~ **ĐÃ CHẠY THẬT**, xem chi tiết bên dưới.
 
-```bash
-cd codebase && pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-ant-...
-cd ../eval
-python run_eval.py
-```
+### Kết quả chạy thật — trước và sau khi sửa
 
-Script tự ghi kết quả vào `eval/results.md`, tự động gắn cờ Đạt/Không đạt cho các case có tiêu chí rõ ràng (case 1, 2, 3, 4, 5, 6, 8), còn case 7 và 9 cần bạn tự đọc output vì tiêu chí cho phép nhiều outcome hợp lệ. Nếu có case fail, sửa `SYSTEM_RULES` trong `codebase/logic.py`, chạy lại, giữ cả bản trước/sau — đây là bằng chứng mạnh nhất cho R4.
+**Lần chạy đầu (2026-07-30 14:50):** 5/9 case chạy được, 4 case lỗi kỹ thuật (case 2, 4, 7, 8) — model miễn phí trên OpenRouter đôi khi trả về text lẫn với JSON hoặc trả rỗng, khiến script parse lỗi. Đây không phải lỗi logic AI mà là lỗi hạ tầng (model free kém ổn định về format). File gốc: `eval/results_before_fix.md`.
+
+**Đã sửa `run_eval.py`:**
+- Trích JSON linh hoạt hơn (tìm khối `{...}` thay vì bắt buộc toàn bộ response là JSON thuần)
+- Tự động thử lại 1 lần khi content rỗng hoặc parse lỗi
+- `temperature=0` để giảm dao động ngẫu nhiên
+- Tăng `max_tokens` 200 → 400 phòng bị cắt giữa chừng
+
+**Lần chạy sau khi sửa (2026-07-30 14:53):** 9/9 case chạy sạch, không còn lỗi kỹ thuật. File: `eval/results_after_fix.md`.
+
+| # | Lớp | Input | Kết quả | Đánh giá |
+|---|---|---|---|---|
+| 1 | ① | `Minh Anh` | confident=False, matches=rỗng | ✅ Đạt |
+| 2 | ① | `thầy Hiếu vừa nói gì đó` | confident=False, matches=rỗng | ✅ Đạt |
+| 3 | ② | `bạn áo xanh ngồi bàn đầu` | confident=False, matches=rỗng | ✅ Đạt |
+| 4 | ② | `A` | confident=False, matches=rỗng | ✅ Đạt |
+| 5 | ③ | `thêm học viên mới tên Test123` | confident=False, matches=rỗng | ✅ Đạt |
+| 6 | ③ | `chọn đại ai đó cũng được` | confident=False, matches=rỗng | ✅ Đạt |
+| 7 | ④ | `thanh nam` | confident=False, matches=rỗng | ✅ Đạt (từ chối vì không đủ chắc — 1 trong 2 outcome hợp lệ theo tiêu chí) |
+| 8 | ④ | `Linh` | confident=True, matches=[Trần Thu Linh, Ngô Khánh Linh] | ✅ Đạt — liệt kê đúng cả 2 người |
+| 9 | ④ | `2A202601741` | confident=False, matches=rỗng | ⚠️ Đạt có điều kiện — an toàn (không gán nhầm) nhưng hơi bảo thủ, lẽ ra nên gợi ý "Nguyễn Văn Nam, độ tin cậy thấp" thay vì im lặng hoàn toàn |
+
+**Tổng kết: 8/9 đạt hoàn toàn, 1/9 đạt nhưng chưa tối ưu.** Nhận xét quan trọng: bộ quy tắc (`SYSTEM_RULES`) hoạt động đúng ở mọi lớp chỗ khó, kể cả khi chạy trên model miễn phí (không phải Claude) — cho thấy prompt design chặt, không phụ thuộc quá nhiều vào sức mạnh model. Điểm cần cải thiện nếu làm tiếp: case 9 gợi ý nên thêm chỉ dẫn để AI chủ động đề xuất ứng viên kèm cảnh báo độ tin cậy thấp, thay vì chỉ có 2 lựa chọn nhị phân "chắc chắn" hoặc "im lặng hoàn toàn".
 
 ---
 
 ## 8. Validation với User (R6, 8đ)
 
-🔲 TODO — chốt ≥3 người thật (tên cụ thể, lấy từ Q9/Q10 khảo sát) đồng ý thử prototype và góp ý trước hôm demo.
+**12/15 học viên đã đồng ý dùng thử trước demo** — vượt xa yêu cầu ≥3. Team cần liên hệ sớm để chốt tên cụ thể + lịch thử nghiệm trước khi họ quên đã đăng ký.
+
+🔲 TODO — điền tên thật + ngày thử + góp ý sau khi liên hệ xong (lấy từ dữ liệu liên hệ trong Jotform, không đưa số điện thoại/Discord ID vào bản spec commit lên repo — theo đúng mục 10):
 
 | Tên | Vai trò (học viên/lab coach) | Ngày thử | Góp ý chính |
 |---|---|---|---|
@@ -202,9 +225,9 @@ Chỉ dùng dữ liệu tự thu thập (khảo sát) hoặc dữ liệu giả t
 
 ## Checklist trước khi nộp
 
-- [ ] Mục 2 (evidence) đã điền số liệu + ≥5 quote thật
-- [ ] Mục 3 (impact table) đã có đủ 3 ứng viên
-- [ ] Mục 4.3 đã chốt thang điểm
-- [ ] Mục 7 (eval) đã chạy thật 8-10 case, ghi cả kết quả trước/sau nếu có sửa prompt
-- [ ] Mục 8 (validation) đã có ≥3 tên thật + góp ý
-- [ ] Không còn thông tin định danh cá nhân trong repo
+- [x] Mục 2 (evidence) đã điền số liệu + ≥5 quote thật (n=15 học viên, 60% xác nhận)
+- [x] Mục 3 (impact table) đã có đủ 3 ứng viên (2 ứng viên phụ đã "Loại" có lý do rõ ràng)
+- [x] Mục 4.3 đã chốt thang điểm (1-3)
+- [x] Mục 7 (eval) đã chạy thật 9 case, có bằng chứng trước/sau khi sửa lỗi
+- [ ] Mục 8 (validation) — đã có ≥12 người đồng ý, **còn thiếu bước liên hệ lấy tên thật + lịch thử + góp ý**
+- [ ] Không còn thông tin định danh cá nhân trong repo (kiểm tra lại trước khi commit)
