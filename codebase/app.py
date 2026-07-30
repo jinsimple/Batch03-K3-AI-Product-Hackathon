@@ -225,6 +225,79 @@ hr { border-color: #eef0f3 !important; }
 [data-testid="stSidebar"] [data-testid="stAlert"] div {
     color: #f8f9fb !important;
 }
+
+/* Custom Toast Notification at bottom-left corner */
+.custom-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    background-color: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-left: 4px solid #10b981 !important; /* Green line for success */
+    color: #f8f9fb !important;
+    padding: 16px 20px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4) !important;
+    z-index: 999999 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    width: 380px !important;
+    max-width: calc(100vw - 48px) !important;
+    animation: toast-fade-in-out 5s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+.custom-toast.draft {
+    border-left: 4px solid #f59e0b !important; /* Amber/orange line for draft/pending */
+}
+
+.custom-toast .toast-icon {
+    font-size: 24px !important;
+    flex-shrink: 0 !important;
+}
+
+.custom-toast .toast-content {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+}
+
+.custom-toast .toast-title {
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    color: #f8f9fb !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.2 !important;
+}
+
+.custom-toast .toast-body {
+    font-size: 13px !important;
+    color: #cbd5e1 !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+@keyframes toast-fade-in-out {
+    0% {
+        transform: translateY(20px) scale(0.95);
+        opacity: 0;
+    }
+    6% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    90% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(10px) scale(0.95);
+        opacity: 0;
+        visibility: hidden;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -235,6 +308,27 @@ if "ai_analysis" not in st.session_state:
     st.session_state.ai_analysis = None
 if "last_note" not in st.session_state:
     st.session_state.last_note = ""
+if "toast_message" not in st.session_state:
+    st.session_state.toast_message = None
+
+# --- RENDER TOAST NOTIFICATION IF SET ---
+if st.session_state.get("toast_message"):
+    toast = st.session_state.toast_message
+    toast_class = "custom-toast draft" if toast["type"] == "draft" else "custom-toast"
+    toast_icon = "⏳" if toast["type"] == "draft" else "✅"
+    
+    st.markdown(f"""
+    <div class="{toast_class}">
+        <span class="toast-icon">{toast_icon}</span>
+        <div class="toast-content">
+            <div class="toast-title">{toast["title"]}</div>
+            <div class="toast-body">{toast["body"]}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Xoá khỏi session state để không lặp lại khi tương tác tiếp theo
+    st.session_state.toast_message = None
 
 # --- SIDEBAR CONFIG ---
 st.sidebar.header("⚙️ Cấu Hình Hệ Thống")
@@ -354,132 +448,78 @@ with tab1:
                 )
                 st.session_state.scroll_to_grading = False
             
-            award_mode = st.radio("Phương thức chấm điểm:", ["Dùng AI phân tích ghi chú", "Chấm điểm nhanh thủ công"], horizontal=True)
+            # 1. Chọn điểm số trực tiếp bằng st.radio
+            points = st.radio("Số điểm cộng:", [1.0, 2.0, 3.0], horizontal=True, index=0)
             
-            if award_mode == "Dùng AI phân tích ghi chú":
-                coach_note = st.text_area(
-                    "Ghi chú ngắn của Coach (Nội dung trả lời):",
-                    value=st.session_state.last_note,
-                    placeholder="Ví dụ: Nam giải thích đúng ý về overfitting là do mô hình quá phức tạp...",
-                    height=80
-                )
-                
-                if st.button("Gửi AI phân tích 🚀", type="primary"):
-                    if not coach_note.strip():
-                        st.error("Vui lòng nhập ghi chú của Coach!")
-                    else:
-                        with st.spinner("AI đang phân tích câu trả lời..."):
-                            use_mock_flag = (run_mode == "Chạy Mock (Offline - Khuyên dùng test nhanh)")
-                            analysis = analyze_grading_note(coach_note, api_key=gemini_key, use_mock=use_mock_flag)
-                            st.session_state.ai_analysis = analysis
-                            st.session_state.last_note = coach_note
-                            st.rerun()
-                            
-                if st.session_state.ai_analysis:
-                    analysis = st.session_state.ai_analysis
-                    status = analysis.get("status", "success")
-                    suggested_score = float(analysis.get("suggested_score", 0.0))
-                    feedback = analysis.get("feedback", "")
-                    explanation = analysis.get("explanation", "")
-                    
-                    if status == "need_more_info":
-                        st.warning(f"⚠️ **CẦN BỔ SUNG THÔNG TIN:** {explanation}")
-                    elif status == "rejected":
-                        st.error(f"❌ **TỪ CHỐI CHUYỂN ĐỔI:** {explanation}")
-                    else:
-                        st.success("✅ **PHÂN TÍCH THÀNH CÔNG:** Ghi chú hợp lệ và đầy đủ thông tin.")
-                        
-                    st.divider()
-                    st.markdown("**Bản nháp phê duyệt:**")
-                    
-                    final_score = st.selectbox(
-                        "Điểm cộng đề xuất (Coach có thể sửa):",
-                        [0.0, 0.5, 1.0],
-                        index=[0.0, 0.5, 1.0].index(suggested_score) if suggested_score in [0.0, 0.5, 1.0] else 0
-                    )
-                    
-                    final_feedback = st.text_area("Feedback nháp gửi học viên (Coach có thể sửa):", value=feedback, height=80)
-                    st.caption(f"*Giải thích nội bộ:* {explanation}")
-                    
-                    col_b1, col_b2 = st.columns([1, 1])
-                    with col_b1:
-                        if st.button("Lưu nháp (Chờ duyệt)", use_container_width=True):
-                            new_record = {
-                                "id": len(db_records) + 1,
-                                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                "student_id": sel["code"],
-                                "student_name": sel["name"],
-                                "coach_note": st.session_state.last_note,
-                                "suggested_score": suggested_score,
-                                "final_score": final_score,
-                                "feedback": final_feedback,
-                                "status": "Chờ duyệt"
-                            }
-                            db_records.append(new_record)
-                            save_db(db_records)
-                            
-                            _, discord_msg = send_discord_score_notification(
-                                student_name=sel["name"],
-                                student_code=sel["code"],
-                                final_score=final_score,
-                                coach_note=st.session_state.last_note,
-                                feedback=final_feedback,
-                                status="Chờ duyệt",
-                                suggested_score=suggested_score,
-                                override_webhook=discord_webhook
-                            )
-                            
-                            st.success(f"Đã lưu nháp cho {sel['name']}! ({discord_msg})")
-                            st.session_state.selected = None
-                            st.session_state.ai_analysis = None
-                            st.session_state.last_note = ""
-                            st.rerun()
-                            
-                    with col_b2:
-                        if st.button("Duyệt & Đồng bộ ngay ⚡", use_container_width=True, type="primary"):
-                            new_record = {
-                                "id": len(db_records) + 1,
-                                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                "student_id": sel["code"],
-                                "student_name": sel["name"],
-                                "coach_note": st.session_state.last_note,
-                                "suggested_score": suggested_score,
-                                "final_score": final_score,
-                                "feedback": final_feedback,
-                                "status": "Đã đồng bộ"
-                            }
-                            db_records.append(new_record)
-                            save_db(db_records)
-                            
-                            _, discord_msg = send_discord_score_notification(
-                                student_name=sel["name"],
-                                student_code=sel["code"],
-                                final_score=final_score,
-                                coach_note=st.session_state.last_note,
-                                feedback=final_feedback,
-                                status="Đã đồng bộ",
-                                suggested_score=suggested_score,
-                                override_webhook=discord_webhook
-                            )
-                            
-                            st.success(f"Đã đồng bộ điểm cho {sel['name']}! ({discord_msg})")
-                            st.session_state.selected = None
-                            st.session_state.ai_analysis = None
-                            st.session_state.last_note = ""
-                            st.rerun()
+            # 2. Nhập ghi chú ngắn của Coach (Tùy chọn)
+            coach_note = st.text_area(
+                "Ghi chú ngắn của Coach (Nội dung trả lời) (Tùy chọn):",
+                value=st.session_state.last_note,
+                placeholder="Ví dụ: Nam giải thích đúng ý về overfitting là do mô hình quá phức tạp...",
+                height=80
+            )
             
-            else: # Chấm điểm nhanh thủ công
-                points = st.radio("Số điểm cộng:", [1.0, 2.0, 3.0], horizontal=True)
-                if st.button("Gửi điểm và thông báo Discord", type="primary", use_container_width=True):
+            # 3. Nhập feedback gửi học viên (Tùy chọn, điền sẵn theo điểm đã chọn)
+            default_feedback = f"Đã ghi nhận điểm cộng +{points} phát biểu."
+            final_feedback = st.text_area(
+                "Feedback gửi học viên (Tùy chọn):",
+                value=default_feedback,
+                placeholder="Ví dụ: Đã ghi nhận điểm cộng +1.0 phát biểu.",
+                height=80
+            )
+            
+            # 4. Hai nút Lưu nháp và Duyệt & Đồng bộ
+            col_b1, col_b2 = st.columns([1, 1])
+            with col_b1:
+                if st.button("Lưu nháp (Chờ duyệt)", use_container_width=True):
+                    note_content = coach_note.strip() if coach_note.strip() else "Chấm điểm nhanh thủ công"
                     new_record = {
                         "id": len(db_records) + 1,
                         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "student_id": sel["code"],
                         "student_name": sel["name"],
-                        "coach_note": "Chấm điểm nhanh thủ công",
+                        "coach_note": note_content,
                         "suggested_score": points,
                         "final_score": points,
-                        "feedback": f"Đã ghi nhận điểm cộng +{points} phát biểu.",
+                        "feedback": final_feedback,
+                        "status": "Chờ duyệt"
+                    }
+                    db_records.append(new_record)
+                    save_db(db_records)
+                    
+                    _, discord_msg = send_discord_score_notification(
+                        student_name=sel["name"],
+                        student_code=sel["code"],
+                        final_score=points,
+                        coach_note=note_content,
+                        feedback=final_feedback,
+                        status="Chờ duyệt",
+                        suggested_score=points,
+                        override_webhook=discord_webhook
+                    )
+                    
+                    st.session_state.toast_message = {
+                        "type": "draft",
+                        "title": "Đã lưu nháp! ⏳",
+                        "body": f"Lưu nháp thành công cho <b>{sel['name']}</b> (+{points} điểm).<br><span style='font-size:11px;color:#94a3b8;'>{discord_msg}</span>"
+                    }
+                    st.session_state.selected = None
+                    st.session_state.ai_analysis = None
+                    st.session_state.last_note = ""
+                    st.rerun()
+                    
+            with col_b2:
+                if st.button("Duyệt & Đồng bộ ngay ⚡", use_container_width=True, type="primary"):
+                    note_content = coach_note.strip() if coach_note.strip() else "Chấm điểm nhanh thủ công"
+                    new_record = {
+                        "id": len(db_records) + 1,
+                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "student_id": sel["code"],
+                        "student_name": sel["name"],
+                        "coach_note": note_content,
+                        "suggested_score": points,
+                        "final_score": points,
+                        "feedback": final_feedback,
                         "status": "Đã đồng bộ"
                     }
                     db_records.append(new_record)
@@ -489,14 +529,18 @@ with tab1:
                         student_name=sel["name"],
                         student_code=sel["code"],
                         final_score=points,
-                        coach_note="Chấm điểm nhanh thủ công",
-                        feedback=f"Đã ghi nhận điểm cộng +{points} phát biểu.",
+                        coach_note=note_content,
+                        feedback=final_feedback,
                         status="Đã đồng bộ",
                         suggested_score=points,
                         override_webhook=discord_webhook
                     )
                     
-                    st.success(f"Đã cộng +{points} điểm cho {sel['name']}. ({discord_msg})")
+                    st.session_state.toast_message = {
+                        "type": "sync",
+                        "title": "Đã đồng bộ! ⚡",
+                        "body": f"Đồng bộ điểm thành công cho <b>{sel['name']}</b> (+{points} điểm).<br><span style='font-size:11px;color:#94a3b8;'>{discord_msg}</span>"
+                    }
                     st.session_state.selected = None
                     st.session_state.ai_analysis = None
                     st.session_state.last_note = ""
