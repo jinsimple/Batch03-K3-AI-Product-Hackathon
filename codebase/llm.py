@@ -99,3 +99,124 @@ def analyze_grading_note(user_input: str, api_key: str = None, use_mock: bool = 
         mock_res = run_mock_llm(user_input)
         mock_res["explanation"] = f"[FALLBACK MOCK do lỗi API: {str(e)}] " + mock_res["explanation"]
         return mock_res
+
+def normalize(s: str) -> str:
+    import unicodedata
+    s = s.lower().strip()
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = s.replace("đ", "d")
+    return s
+
+def ai_fuzzy_suggest_llm(query: str, roster: list, gemini_api_key: str = None, anthropic_api_key: str = None, use_mock: bool = False) -> tuple:
+    """
+    Hàm gợi ý học viên mờ (fuzzy) bằng AI (Claude hoặc Gemini) hoặc Mock offline.
+    Trả về: (list_of_matched_students, error_message)
+    """
+    if use_mock or (not gemini_api_key and not anthropic_api_key):
+        # Mock logic based on common abbreviations / typos
+        q = normalize(query)
+        
+        matches = []
+        if "mih quan" in q or "m quan" in q or "quan m" in q or "min quan" in q:
+            matches.append("Lê Minh Quân")
+        if "t linh" in q or "thu linh" in q or "t.linh" in q:
+            matches.append("Trần Thu Linh")
+        if "thao vi" in q or "t vy" in q or "thao vy" in q or "t.vy" in q:
+            matches.append("Đỗ Thảo Vy")
+        if "van nam" in q or "v nam" in q or "nam v" in q:
+            matches.append("Nguyễn Văn Nam")
+        if "bao an" in q or "b an" in q:
+            matches.append("Phạm Bảo An")
+        if "gia huy" in q or "g huy" in q:
+            matches.append("Hoàng Gia Huy")
+        if "duc anh" in q or "d anh" in q:
+            matches.append("Vũ Đức Anh")
+        if "khanh linh" in q or "k linh" in q:
+            matches.append("Ngô Khánh Linh")
+        if "tan phat" in q or "t phat" in q:
+            matches.append("Bùi Tấn Phát")
+        if "ngoc mai" in q or "n mai" in q:
+            matches.append("Đặng Ngọc Mai")
+            
+        matched_students = [s for s in roster if s["name"] in matches]
+        if matched_students:
+            return matched_students, "[Mock Offline] Tìm thấy gợi ý từ AI."
+        return [], "[Mock Offline] AI cũng không tìm thấy kết quả phù hợp."
+
+    # Call Anthropic if key exists
+    if anthropic_api_key:
+        try:
+            from anthropic import Anthropic
+        except ImportError:
+            return None, "Thư viện 'anthropic' chưa được cài đặt."
+            
+        try:
+            client = Anthropic(api_key=anthropic_api_key)
+            roster_names = "\n".join(f"- {s['name']} ({s['code']})" for s in roster)
+            
+            prompt = f"""Bạn là trợ lý tìm tên học viên cho lab coach. Lab coach gõ: "{query}"
+
+Danh sách học viên trong lớp:
+{roster_names}
+
+Nhiệm vụ: tìm TỐI ĐA 3 học viên có khả năng khớp với input trên (có thể do gõ tắt,
+sai dấu, gọi biệt danh, hoặc nhớ nhầm chính tả).
+Nếu không đủ tự tin để gợi ý người nào, trả lời rõ là không tìm thấy — KHÔNG đoán liều.
+
+Trả lời CHỈ bằng JSON, không thêm chữ nào khác, đúng định dạng:
+{{"matches": ["Tên chính xác 1", "Tên chính xác 2"], "confident": true}}
+"""
+            response = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=200,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.content[0].text.strip()
+            text = text.replace("```json", "").replace("```", "").strip()
+            data = json.loads(text)
+            if not data.get("confident") or not data.get("matches"):
+                return [], None
+            matched = [s for s in roster if s["name"] in data["matches"]]
+            return matched, None
+        except Exception as e:
+            return None, f"Lỗi gọi Claude: {e}"
+
+    # Call Gemini if key exists
+    if gemini_api_key:
+        try:
+            genai.configure(api_key=gemini_api_key)
+            model = genai.GenerativeModel(
+                model_name="gemini-1.5-flash",
+                generation_config={"response_mime_type": "application/json", "temperature": 0.1}
+            )
+            roster_names = "\n".join(f"- {s['name']} ({s['code']})" for s in roster)
+            prompt = f"""Bạn là trợ lý tìm tên học viên cho lab coach. Lab coach gõ: "{query}"
+
+Danh sách học viên trong lớp:
+{roster_names}
+
+Nhiệm vụ: tìm TỐI ĐA 3 học viên có khả năng khớp với input trên (có thể do gõ tắt,
+sai dấu, gọi biệt danh, hoặc nhớ nhầm chính tả).
+Nếu không đủ tự tin để gợi ý người nào, trả lời rõ là không tìm thấy — KHÔNG đoán liều.
+
+Trả lời CHỈ bằng JSON, không thêm chữ nào khác, đúng định dạng:
+{{"matches": ["Tên chính xác 1", "Tên chính xác 2"], "confident": true}}
+"""
+            response = model.generate_content(prompt)
+            text = response.text.strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+            
+            data = json.loads(text)
+            if not data.get("confident") or not data.get("matches"):
+                return [], None
+            matched = [s for s in roster if s["name"] in data["matches"]]
+            return matched, None
+        except Exception as e:
+            return None, f"Lỗi gọi Gemini: {e}"
+
+    return [], None
