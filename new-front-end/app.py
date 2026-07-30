@@ -9,19 +9,21 @@ try:
 except ImportError:
     Anthropic = None
 
-st.set_page_config(page_title="Điểm thưởng cho người chăm chỉ", page_icon="⭐", layout="centered")
+st.set_page_config(page_title="Điểm thưởng cho người chăm chỉ", page_icon="⭐", layout="wide")
 
 # --- CSS tùy chỉnh để khớp bộ nhận diện VLearn (navy + đỏ) ---
 st.markdown("""
 <style>
 #MainMenu, footer, header {visibility: hidden;}
 .stApp { background: #16233d; }
+
+/* Thùng chứa chính mở rộng ngang và căn giữa */
 .block-container {
-    max-width: 460px;
+    max-width: 1000px;
     background: #ffffff;
     border-radius: 20px;
-    padding: 2rem 1.75rem !important;
-    margin-top: 3rem;
+    padding: 2rem 2.5rem !important;
+    margin: 3rem auto !important;
     box-shadow: 0 8px 30px rgba(0,0,0,0.25);
 }
 .block-container::before {
@@ -33,15 +35,26 @@ st.markdown("""
     border-radius: 4px;
     margin-bottom: 1.5rem;
 }
-h3 { color: #16233d !important; font-weight: 600 !important; }
-p, span, div, label { color: #16233d; }
+
+/* Kiểu chữ nội dung chính - giới hạn trong block-container để không làm mất tương phản ngoài main */
+.block-container h3, .block-container h4, .block-container h5 { 
+    color: #16233d !important; 
+    font-weight: 600 !important; 
+}
+.block-container p, .block-container span, .block-container div, .block-container label { 
+    color: #16233d; 
+}
 .stCaption, [data-testid="stCaptionContainer"] { color: #6b7684 !important; }
+
+/* Ô nhập liệu */
 .stTextInput input {
     background: #f8f9fb !important;
     border: 1.5px solid #e2e5ea !important;
     border-radius: 10px !important;
     color: #16233d !important;
 }
+
+/* Nút bấm */
 .stButton button {
     border-radius: 10px !important;
     border: 1.5px solid #e2e5ea !important;
@@ -52,8 +65,55 @@ p, span, div, label { color: #16233d; }
 .stButton button:hover { border-color: #1e3a6e !important; color: #1e3a6e !important; }
 .stButton button[kind="primary"] { background: #1e3a6e !important; border: none !important; color: #ffffff !important; }
 .stButton button[kind="primary"]:hover { background: #16305e !important; color: #ffffff !important; }
-[data-testid="stMetricValue"], .stRadio label { color: #16233d !important; }
+
+/* Đảm bảo chữ bên trong nút bấm kế thừa màu chữ của nút (không bị đè bởi màu chữ của block-container) */
+.stButton button p,
+.stButton button span,
+.stButton button div {
+    color: inherit !important;
+}
+
+[data-testid="stMetricValue"], .block-container .stRadio label { color: #16233d !important; }
 hr { border-color: #eef0f3 !important; }
+
+/* Tùy chỉnh sidebar để có giao diện tối màu, tương phản cao */
+[data-testid="stSidebar"] {
+    background-color: #0f172a !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] h4,
+[data-testid="stSidebar"] h5,
+[data-testid="stSidebar"] h6,
+[data-testid="stSidebar"] p, 
+[data-testid="stSidebar"] label, 
+[data-testid="stSidebar"] span {
+    color: #f8f9fb !important;
+}
+/* Đảm bảo ô nhập liệu trong sidebar giữ chữ tối trên nền sáng */
+[data-testid="stSidebar"] .stTextInput input {
+    color: #16233d !important;
+    background-color: #f8f9fb !important;
+}
+
+/* Giữ chữ tối màu trong hộp thông báo Alert ở màn hình chính (để đọc rõ trên nền cảnh báo sáng màu) */
+.block-container [data-testid="stAlert"] p, 
+.block-container [data-testid="stAlert"] span, 
+.block-container [data-testid="stAlert"] div {
+    color: #0f172a !important;
+}
+
+/* Tùy chỉnh hộp thông báo Alert trong sidebar: chữ sáng, viền tinh tế trên nền tối */
+[data-testid="stSidebar"] [data-testid="stAlert"] {
+    background-color: #1e293b !important;
+    border: 1px solid #334155 !important;
+}
+[data-testid="stSidebar"] [data-testid="stAlert"] p,
+[data-testid="stSidebar"] [data-testid="stAlert"] span,
+[data-testid="stSidebar"] [data-testid="stAlert"] div {
+    color: #f8f9fb !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -185,13 +245,24 @@ for s in results:
     with cols[2]:
         if st.button("Chọn", key=f"pick-{s['code']}"):
             st.session_state.selected = s["code"]
+            st.session_state.scroll_to_grading = True
             st.rerun()
 
 if st.session_state.selected:
     sel = next((s for s in st.session_state.roster if s["code"] == st.session_state.selected), None)
     if sel:
         st.divider()
+        # Khởi tạo thẻ neo để scroll đến khi click nút Chọn
+        st.markdown('<div id="grading-section"></div>', unsafe_allow_html=True)
         st.write(f"**{sel['name']}**  ·  `{sel['code']}`")
+        
+        # Kích hoạt JS scroll nếu flag st.session_state.scroll_to_grading được đặt
+        if st.session_state.get("scroll_to_grading"):
+            st.markdown(
+                '<img src="x" style="display:none;" onerror="const el = window.parent.document.getElementById(\'grading-section\'); if(el) el.scrollIntoView({behavior: \'smooth\'});">',
+                unsafe_allow_html=True
+            )
+            st.session_state.scroll_to_grading = False
         points = st.radio("Số điểm cộng", [1, 2, 3], horizontal=True)
         if st.button("Gửi điểm và thông báo Discord", type="primary"):
             sel["count"] += 1
