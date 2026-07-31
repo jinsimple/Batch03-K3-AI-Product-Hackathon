@@ -2,8 +2,6 @@
 **Mini Hackathon AI — Batch 03 | Hướng C (Làn mở)**
 **Team:** [Bach, Người 2, Người 3] — 3 người
 
-> ⚠️ File này là **bản nháp**. Các mục đánh dấu `🔲 TODO` cần điền sau khi có kết quả khảo sát / chạy eval / vòng validation thật. Không tự bịa số liệu vào các mục đó.
-
 ---
 
 ## 0. Tóm tắt 1 dòng
