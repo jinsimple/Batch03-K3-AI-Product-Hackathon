@@ -8,7 +8,7 @@
 
 ## 0. Tóm tắt 1 dòng
 
-AI gợi ý mức điểm cộng + feedback ngắn cho lab coach, dựa trên ghi chú nhanh khi học viên giơ tay trả lời — lab coach vẫn là người xác nhận cuối cùng.
+AI gợi ý đúng học viên trong roster khi lab coach gõ tên/mã mơ hồ (gõ tắt, sai dấu, biệt danh) để ghi điểm cộng phát biểu nhanh hơn — điểm số và duyệt cuối cùng luôn do lab coach quyết định.
 
 ---
 
@@ -18,7 +18,7 @@ AI gợi ý mức điểm cộng + feedback ngắn cho lab coach, dựa trên gh
 
 **Đang làm gì:** Giơ tay trả lời câu hỏi trong buổi học, kỳ vọng được ghi nhận điểm cộng minh bạch.
 
-**Vướng đâu:** Quy trình hiện tại là thủ công — lab coach tự ghi lại tại chỗ, hoặc học viên tự note câu trả lời lên Discord rồi lab coach tổng hợp lại sau buổi. Học viên không có cách nào biết chắc điểm của mình đã được ghi nhận hay chưa cho đến khi tổng kết.
+**Vướng đâu:** Quy trình hiện tại tốn thời gian **cả 2 bên**: lab coach tự ghi note tay rồi điền lại vào file Excel, hoặc học viên tự gõ câu hỏi/câu trả lời lên Discord rồi lab coach phải đọc lại và note thủ công vào Excel — dù theo cách nào, dữ liệu cũng phải đi qua bước nhập tay 2 lần (note → Excel), và học viên không có cách nào biết chắc điểm của mình đã được ghi nhận hay chưa cho đến khi tổng kết.
 
 **Hậu quả (phía học viên, có evidence — xem mục 2):**
 - 60% học viên khảo sát (9/15) không chắc chắn hoặc nghi ngờ điểm cộng của mình có được ghi đúng
@@ -135,13 +135,33 @@ Sau khi trao đổi lại, team xác nhận: **AI KHÔNG tham gia việc chấm 
 
 ---
 
-## 6. Prototype — Phạm vi (R5, 8đ, mức Sketch/Mock)
+## 6. Prototype — Phạm vi thật đã build (R5, 8đ)
 
-- **Input:** 1 ô nhập ghi chú ngắn của lab coach
-- **Xử lý:** 1 lời gọi Claude API thật → trả về gợi ý mức điểm + feedback ngắn
-- **Output:** hiển thị kết quả trên UI, không lưu trữ lâu dài
-- **Không làm:** không tích hợp Discord/roster thật, không deploy, không thêm tính năng ngoài lát cắt ở mục 4
-- **Mock rõ:** phần nào giả lập (VD: danh sách học viên nếu có) phải ghi chú rõ trong `codebase/README.md`
+> ⚠️ **Đã vượt xa mức "Sketch/Mock 1 lát cắt" ban đầu** — xem cảnh báo ở cuối mục này trước khi nộp.
+
+Prototype gồm **Web Dashboard (Streamlit)** + **Discord Bot** chạy song song, đồng bộ qua file JSON, chia 3 nhóm tính năng:
+
+### 6.1 Quản lý điểm cộng (lõi sản phẩm)
+- Lab coach ghi điểm nhanh trên web: chọn học viên (AI gợi ý tên khi gõ mơ hồ) → chọn điểm → duyệt & đồng bộ
+- Học viên tự ghi nhận qua lệnh Discord `/record` (câu hỏi + tóm tắt câu trả lời + ghi chú) → vào hàng chờ duyệt trên web, lab coach xem và duyệt/từ chối — **không tự động ghi điểm**, đúng nguyên tắc HITL đã chốt ở mục 4.1
+- Tra cứu điểm theo học viên hoặc toàn lớp, trên cả web lẫn Discord (`/total`)
+
+### 6.2 Hỏi đáp học viên hướng nội — AI nháp, người duyệt
+- Học viên ngại giơ tay có thể gửi câu hỏi qua Discord `/ask`
+- AI tự sinh câu trả lời nháp, **chỉ dựa trên tài liệu bài giảng** (RAG từ transcript, có trích dẫn), báo rõ khi nội dung chưa được dạy tới thay vì bịa
+- Lab coach xem, chỉnh sửa nếu cần, bấm gửi → câu trả lời final gửi về Discord riêng (DM) cho học viên
+
+### 6.3 AI Quiz tương tác trên Discord
+- AI chọn/sinh câu hỏi trắc nghiệm từ transcript bài giảng theo chủ đề, phát lên Discord
+- Học viên trả lời trực tiếp trên Discord, ai đúng & nhanh nhất được cộng điểm tự động (có cơ chế khóa chống cộng trùng)
+
+### ⚠️ Cảnh báo về phạm vi (đọc trước khi nộp)
+
+Mục 8 (nguyên tắc) trong đề bài gốc ghi rõ: *"giữ tối giản tuyệt đối, không thêm tính năng ngoài đúng 1 lát cắt đã định nghĩa"*. Prototype hiện tại có **3 nhóm tính năng, 2 kênh (web+Discord), nhiều luồng AI khác nhau** — đây không còn là 1 lát cắt tối giản nữa. Rủi ro khi chấm:
+- BTC có thể hỏi thẳng "1 lát cắt của các bạn là gì" và bị bối rối nếu không chốt trước
+- Càng nhiều tính năng AI càng cần càng nhiều eval — hiện chỉ có eval cho phần gợi ý tên (mục 7), **AI Quiz và AI trả lời câu hỏi chưa có eval nào**
+
+**✅ ĐÃ CHỐT: 6.1 là lát cắt trọng tâm cho chấm điểm.** 6.2 và 6.3 là tính năng mở rộng đã build nhưng **nằm ngoài phạm vi trọng tâm** — trình bày với BTC như "đã làm thêm nhưng chưa kiểm thử đầy đủ", không dùng làm câu trả lời chính cho câu hỏi "AI quyết định điều gì" hay "lát cắt của các bạn là gì".
 
 ---
 
