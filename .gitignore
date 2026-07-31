@@ -1,3 +1,16 @@
+.venv
+.env
+*.env
 .DS_Store
 node_modules/
-*.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Dynamic data / runtime state
+data/points_db.json
+data/active_quiz.json
