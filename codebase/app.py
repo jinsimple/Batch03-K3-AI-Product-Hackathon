@@ -42,6 +42,8 @@ discord_webhook = os.getenv("DISCORD_WEBHOOK_URL", "")
 
 # Đường dẫn lưu trữ database cục bộ
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "points_db.json")
+STUDENT_QUESTIONS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "student_questions.json")
+ACTIVE_QUIZ_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "active_quiz.json")
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 # Hàm tải dữ liệu
@@ -283,6 +285,38 @@ if "last_note" not in st.session_state:
     st.session_state.last_note = ""
 if "toast_message" not in st.session_state:
     st.session_state.toast_message = None
+if "last_db_mtime" not in st.session_state:
+    st.session_state.last_db_mtime = 0.0
+if "auto_sync_enabled" not in st.session_state:
+    st.session_state.auto_sync_enabled = True
+
+
+# --- REAL-TIME DISCORD AUTO-SYNC FRAGMENT ---
+@st.fragment(run_every=2)
+def check_discord_data_updates():
+    if not st.session_state.get("auto_sync_enabled", True):
+        return
+    
+    data_files = [DB_PATH, STUDENT_QUESTIONS_PATH, ACTIVE_QUIZ_PATH]
+    latest_mtime = 0.0
+    for fpath in data_files:
+        if os.path.exists(fpath):
+            try:
+                m = os.path.getmtime(fpath)
+                if m > latest_mtime:
+                    latest_mtime = m
+            except Exception:
+                pass
+                
+    last_mtime = st.session_state.get("last_db_mtime", 0.0)
+    if last_mtime == 0.0:
+        st.session_state.last_db_mtime = latest_mtime
+    elif latest_mtime > last_mtime:
+        st.session_state.last_db_mtime = latest_mtime
+        st.rerun()
+
+# Kích hoạt worker kiểm tra cập nhật ngầm từ Discord
+check_discord_data_updates()
 
 # --- RENDER TOAST NOTIFICATION IF SET ---
 if st.session_state.get("toast_message"):
@@ -308,6 +342,25 @@ if st.session_state.get("toast_message"):
 
 # Tải danh sách điểm hiện tại
 db_records = load_db()
+
+# --- BAR THÔNG BÁO & ĐIỀU KHIỂN ĐỒNG BỘ DISCORD ---
+sync_col1, sync_col2 = st.columns([3, 1])
+with sync_col1:
+    if st.session_state.get("auto_sync_enabled", True):
+        st.markdown("<div style='margin-bottom: 12px; font-size: 13px; color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 6px;'><span>🟢</span> <span>Real-time Discord Sync: Tự động cập nhật dữ liệu khi học viên tương tác trên Discord</span></div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div style='margin-bottom: 12px; font-size: 13px; color: #f59e0b; font-weight: 600; display: flex; align-items: center; gap: 6px;'><span>⏸️</span> <span>Real-time Sync đang tạm dừng (Bật lại để tự động tải dữ liệu từ Discord)</span></div>", unsafe_allow_html=True)
+
+with sync_col2:
+    btn_c1, btn_c2 = st.columns([1, 1])
+    with btn_c1:
+        is_syncing = st.toggle("Sync", value=st.session_state.auto_sync_enabled, help="Bật/Tắt tự động đồng bộ từ Discord")
+        if is_syncing != st.session_state.auto_sync_enabled:
+            st.session_state.auto_sync_enabled = is_syncing
+            st.rerun()
+    with btn_c2:
+        if st.button("🔄", help="Tải lại dữ liệu ngay lập tức", use_container_width=True):
+            st.rerun()
 
 # --- MAIN WORKSPACE ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([

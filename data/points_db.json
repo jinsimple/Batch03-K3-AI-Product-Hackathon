@@ -1,0 +1,35 @@
+[
+  {
+    "id": 1,
+    "timestamp": "2026-07-30 08:30:15",
+    "student_id": "SV001",
+    "student_name": "Nguyễn Văn Bách",
+    "coach_note": "Bách giải thích rất rõ về bias-variance tradeoff",
+    "suggested_score": 1.0,
+    "final_score": 1.0,
+    "feedback": "Tuyệt vời! Giải thích rất tốt về Bias-Variance tradeoff, phân biệt được rõ mô hình phức tạp và đơn giản.",
+    "status": "Đã đồng bộ"
+  },
+  {
+    "id": 2,
+    "timestamp": "2026-07-30 09:15:22",
+    "student_id": "SV002",
+    "student_name": "Trần Thị Nam",
+    "coach_note": "Nam giơ tay phát biểu ý kiến bổ sung phần regularization",
+    "suggested_score": 0.5,
+    "final_score": 0.5,
+    "feedback": "Cảm ơn đóng góp bổ sung của em về phương pháp Regularization (L1/L2) giúp tránh overfitting.",
+    "status": "Đã đồng bộ"
+  },
+  {
+    "id": 3,
+    "timestamp": "2026-07-30 11:45:02",
+    "student_id": "SV123",
+    "student_name": "Nguyễn Văn A",
+    "coach_note": "cộng 3 điểm",
+    "suggested_score": 1.0,
+    "final_score": 1.0,
+    "feedback": "Tuyệt vời! Cảm ơn đóng góp của bạn cho buổi học. Điểm cộng của bạn đã được ghi nhận nháp trên hệ thống với nội dung: 'cộng 3 điểm'.",
+    "status": "Đã đồng bộ"
+  }
+]
