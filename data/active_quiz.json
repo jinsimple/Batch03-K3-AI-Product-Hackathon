@@ -11,7 +11,7 @@
   "correct_option": "B",
   "explanation": "Self-Attention cho phép mô hình nhìn vào tất cả các vị trí trong chuỗi đầu vào và tính toán mức độ liên quan giữa các từ với nhau, xử lý song song hiệu quả.",
   "reward_score": 2,
-  "status": "Đang diễn ra",
-  "winner": null,
+  "status": "Đã kết thúc",
+  "winner": "T089 - Trần Xuân Lộc - 01671 (DISCORD_TATHANKOCHI)",
   "created_at": "2026-07-30 22:55:59"
 }
